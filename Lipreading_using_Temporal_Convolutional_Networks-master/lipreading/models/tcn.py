@@ -9,6 +9,7 @@ import pdb
 __https://arxiv.org/pdf/1803.01271.pdf
 """
 
+# Casual Conv1D
 class Chomp1d(nn.Module):
     def __init__(self, chomp_size, symm_chomp):
         super(Chomp1d, self).__init__()
@@ -16,6 +17,8 @@ class Chomp1d(nn.Module):
         self.symm_chomp = symm_chomp
         if self.symm_chomp:
             assert self.chomp_size % 2 == 0, "If symmetric chomp, chomp size needs to be even"
+      
+    # 모델이 학습데이터를 입력받아서 forward propagation 진행
     def forward(self, x):
         if self.chomp_size == 0:
             return x
@@ -25,6 +28,7 @@ class Chomp1d(nn.Module):
             return x[:, :, :-self.chomp_size].contiguous()
         
 
+# Conv1D + BatchNorm1D + Casual Conv1D + ReLU
 class ConvBatchChompRelu(nn.Module):
     def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, relu_type, dwpw=False):
         super(ConvBatchChompRelu, self).__init__()
@@ -32,23 +36,24 @@ class ConvBatchChompRelu(nn.Module):
         if dwpw:
             self.conv = nn.Sequential(
                 # -- dw
-                nn.Conv1d( n_inputs, n_inputs, kernel_size, stride=stride,
+                nn.Conv1d( n_inputs, n_inputs, kernel_size, stride=stride,  # Conv1D
                            padding=padding, dilation=dilation, groups=n_inputs, bias=False),
-                nn.BatchNorm1d(n_inputs),
-                Chomp1d(padding, True),
-                nn.PReLU(num_parameters=n_inputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),
+                nn.BatchNorm1d(n_inputs),  # BatchNorm1D
+                Chomp1d(padding, True),  # Casual Conv1D
+                nn.PReLU(num_parameters=n_inputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),  # PReLU or ReLU
                 # -- pw
-                nn.Conv1d( n_inputs, n_outputs, 1, 1, 0, bias=False),
-                nn.BatchNorm1d(n_outputs),
-                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True)
+                nn.Conv1d( n_inputs, n_outputs, 1, 1, 0, bias=False),  # Conv1D
+                nn.BatchNorm1d(n_outputs),  # BatchNorm1D
+                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True)  # PReLU or ReLU
             )
         else:
-            self.conv = nn.Conv1d(n_inputs, n_outputs, kernel_size,
+            self.conv = nn.Conv1d(n_inputs, n_outputs, kernel_size,  # Conv1D
                                                stride=stride, padding=padding, dilation=dilation)
-            self.batchnorm = nn.BatchNorm1d(n_outputs)
-            self.chomp = Chomp1d(padding,True)
-            self.non_lin = nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU()
+            self.batchnorm = nn.BatchNorm1d(n_outputs)  # BatchNorm1D
+            self.chomp = Chomp1d(padding,True)  # Casual Conv1D
+            self.non_lin = nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU()  # PReLU or ReLU
 
+    # 모델이 학습데이터를 입력받아서 forward propagation 진행
     def forward(self, x):
         if self.dwpw:
             return self.conv(x)
@@ -74,24 +79,25 @@ class MultibranchTemporalBlock(nn.Module):
 
 
         for k_idx,k in enumerate( self.kernel_sizes ):
-            cbcr = ConvBatchChompRelu( n_inputs, self.n_outputs_branch, k, stride, dilation, padding[k_idx], relu_type, dwpw=dwpw)
-            setattr( self,'cbcr0_{}'.format(k_idx), cbcr )
-        self.dropout0 = nn.Dropout(dropout)
+            cbcr = ConvBatchChompRelu( n_inputs, self.n_outputs_branch, k, stride, dilation, padding[k_idx], relu_type, dwpw=dwpw)  # Conv1D + BatchNorm1D + Casual Conv1D + ReLU
+            setattr( self,'cbcr0_{}'.format(k_idx), cbcr )  # object 에 존재하는 속성의 값을 바꾸거나 새로운 속성을 생성하여 값을 부여함
+        self.dropout0 = nn.Dropout(dropout)  # Dropout
         
         for k_idx,k in enumerate( self.kernel_sizes ):
-            cbcr = ConvBatchChompRelu( n_outputs, self.n_outputs_branch, k, stride, dilation, padding[k_idx], relu_type, dwpw=dwpw)
-            setattr( self,'cbcr1_{}'.format(k_idx), cbcr )
-        self.dropout1 = nn.Dropout(dropout)
+            cbcr = ConvBatchChompRelu( n_outputs, self.n_outputs_branch, k, stride, dilation, padding[k_idx], relu_type, dwpw=dwpw)  # Conv1D + BatchNorm1D + Casual Conv1D + ReLU
+            setattr( self,'cbcr1_{}'.format(k_idx), cbcr )  # object 에 존재하는 속성의 값을 바꾸거나 새로운 속성을 생성하여 값을 부여함
+        self.dropout1 = nn.Dropout(dropout)  # Dropout
 
         # downsample?
-        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if (n_inputs//self.num_kernels) != n_outputs else None
+        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if (n_inputs//self.num_kernels) != n_outputs else None  # Conv1D or None
         
         # final relu
         if relu_type == 'relu':
-            self.relu_final = nn.ReLU()
+            self.relu_final = nn.ReLU()  # ReLU
         elif relu_type == 'prelu':
-            self.relu_final = nn.PReLU(num_parameters=n_outputs)
+            self.relu_final = nn.PReLU(num_parameters=n_outputs)  # PReLU
 
+    # 모델이 학습데이터를 입력받아서 forward propagation 진행
     def forward(self, x):
 
         # first multi-branch set of convolutions
@@ -134,8 +140,9 @@ class MultibranchTemporalConvNet(nn.Module):
                 stride=1, dilation=dilation_size, padding = padding, dropout=dropout, relu_type = relu_type,
                 dwpw=dwpw) )
 
-        self.network = nn.Sequential(*layers)
+        self.network = nn.Sequential(*layers)  # 설정한 레이어 반환
 
+    # 모델이 학습데이터를 입력받아서 forward propagation 진행
     def forward(self, x):
         return self.network(x)        
 # --------------------------------
@@ -156,49 +163,49 @@ class TemporalBlock(nn.Module):
             self.net = nn.Sequential(
                 # -- first conv set within block
                 # -- dw
-                nn.Conv1d( n_inputs, n_inputs, kernel_size, stride=stride,
+                nn.Conv1d( n_inputs, n_inputs, kernel_size, stride=stride,  # Conv1D
                            padding=padding, dilation=dilation, groups=n_inputs, bias=False),
-                nn.BatchNorm1d(n_inputs),
-                Chomp1d(padding, True),
-                nn.PReLU(num_parameters=n_inputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),
+                nn.BatchNorm1d(n_inputs),  # BatchNorm1D
+                Chomp1d(padding, True),  # Casual Conv1D
+                nn.PReLU(num_parameters=n_inputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),  # PReLU or ReLU
                 # -- pw
-                nn.Conv1d( n_inputs, n_outputs, 1, 1, 0, bias=False),
-                nn.BatchNorm1d(n_outputs),
-                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
+                nn.Conv1d( n_inputs, n_outputs, 1, 1, 0, bias=False),  # Conv1D (1,1)
+                nn.BatchNorm1d(n_outputs),  # BatchNorm1D
+                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),  # PReLU or ReLU
+                nn.Dropout(dropout),  # Dropout
                 # -- second conv set within block
                 # -- dw
-                nn.Conv1d( n_outputs, n_outputs, kernel_size, stride=stride,
+                nn.Conv1d( n_outputs, n_outputs, kernel_size, stride=stride,  # Conv1D
                            padding=padding, dilation=dilation, groups=n_outputs, bias=False),
-                nn.BatchNorm1d(n_outputs),
-                Chomp1d(padding, True),
-                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),
+                nn.BatchNorm1d(n_outputs),  # BatchNorm1D
+                Chomp1d(padding, True),  # Casual Conv1D
+                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),  # PReLU or ReLU
                 # -- pw
-                nn.Conv1d( n_outputs, n_outputs, 1, 1, 0, bias=False),
-                nn.BatchNorm1d(n_outputs),
-                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
+                nn.Conv1d( n_outputs, n_outputs, 1, 1, 0, bias=False),  # Conv1D
+                nn.BatchNorm1d(n_outputs),  # BatchNorm1D
+                nn.PReLU(num_parameters=n_outputs) if relu_type == 'prelu' else nn.ReLU(inplace=True),  # PReLU or ReLU
+                nn.Dropout(dropout),  # Dropout
             )
         else:
-            self.conv1 = nn.Conv1d(n_inputs, n_outputs, kernel_size,
+            self.conv1 = nn.Conv1d(n_inputs, n_outputs, kernel_size,  # Conv1D
                                    stride=stride, padding=padding, dilation=dilation)
-            self.batchnorm1 = nn.BatchNorm1d(n_outputs)
-            self.chomp1 = Chomp1d(padding,symm_chomp)  if not self.no_padding else None
+            self.batchnorm1 = nn.BatchNorm1d(n_outputs)  # BatchNorm1D
+            self.chomp1 = Chomp1d(padding,symm_chomp)  if not self.no_padding else None  # Casual Conv1D or None
             if relu_type == 'relu':
-                self.relu1 = nn.ReLU()
+                self.relu1 = nn.ReLU()  # ReLU
             elif relu_type == 'prelu':
-                self.relu1 = nn.PReLU(num_parameters=n_outputs)
-            self.dropout1 = nn.Dropout(dropout)
+                self.relu1 = nn.PReLU(num_parameters=n_outputs)  # PReLU
+            self.dropout1 = nn.Dropout(dropout)  # Dropout
             
-            self.conv2 = nn.Conv1d(n_outputs, n_outputs, kernel_size,
+            self.conv2 = nn.Conv1d(n_outputs, n_outputs, kernel_size,  # Conv1D
                                                stride=stride, padding=padding, dilation=dilation)
-            self.batchnorm2 = nn.BatchNorm1d(n_outputs)
-            self.chomp2 = Chomp1d(padding,symm_chomp) if not self.no_padding else None
+            self.batchnorm2 = nn.BatchNorm1d(n_outputs)  # BatchNorm1D
+            self.chomp2 = Chomp1d(padding,symm_chomp) if not self.no_padding else None  # Casual Conv1D or None
             if relu_type == 'relu':
-                self.relu2 = nn.ReLU()
+                self.relu2 = nn.ReLU()  # ReLU
             elif relu_type == 'prelu':
-                self.relu2 = nn.PReLU(num_parameters=n_outputs)
-            self.dropout2 = nn.Dropout(dropout)
+                self.relu2 = nn.PReLU(num_parameters=n_outputs)  # PReLU
+            self.dropout2 = nn.Dropout(dropout)  # Dropout
             
       
             if self.no_padding:
@@ -208,14 +215,15 @@ class TemporalBlock(nn.Module):
                 self.net = nn.Sequential(self.conv1, self.batchnorm1, self.chomp1, self.relu1, self.dropout1,
                                          self.conv2, self.batchnorm2, self.chomp2, self.relu2, self.dropout2)
 
-        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
+        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None  # Conv1D or None
         if self.no_padding:
-            self.downsample_chomp = Chomp1d(downsample_chomp_size,True)
+            self.downsample_chomp = Chomp1d(downsample_chomp_size,True)  # Casual Conv1D
         if relu_type == 'relu':
-            self.relu = nn.ReLU()
+            self.relu = nn.ReLU()  # ReLU
         elif relu_type == 'prelu':
-            self.relu = nn.PReLU(num_parameters=n_outputs)
+            self.relu = nn.PReLU(num_parameters=n_outputs)  # PReLU
 
+    # 모델이 학습데이터를 입력받아서 forward propagation 진행
     def forward(self, x):
         out = self.net(x)
         if self.no_padding:
@@ -224,6 +232,7 @@ class TemporalBlock(nn.Module):
         return self.relu(out + res)
 
 
+# TCN 모델
 class TemporalConvNet(nn.Module):
     def __init__(self, num_inputs, num_channels, tcn_options, dropout=0.2, relu_type='relu', dwpw=False):
         super(TemporalConvNet, self).__init__()
@@ -238,8 +247,9 @@ class TemporalConvNet(nn.Module):
                                      padding=(self.ksize-1) * dilation_size, dropout=dropout, symm_chomp = True,
                                      no_padding = False, relu_type=relu_type, dwpw=dwpw) )
             
-        self.network = nn.Sequential(*layers)
+        self.network = nn.Sequential(*layers)  # 설정한 레이어 반환
 
+    # 모델이 학습데이터를 입력받아서 forward propagation 진행
     def forward(self, x):
         return self.network(x)
 # --------------------------------
