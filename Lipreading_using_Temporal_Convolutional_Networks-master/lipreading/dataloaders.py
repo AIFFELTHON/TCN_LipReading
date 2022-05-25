@@ -11,8 +11,9 @@ def get_preprocessing_pipelines(modality):
     if modality == 'video':
         crop_size = (88, 88)
         (mean, std) = (0.421, 0.165)
-        preprocessing['train'] = Compose([
-                                    Normalize( 0.0,255.0 ),
+        # train : 
+        preprocessing['train'] = Compose([                       # 여러 개의 preprocess를 사용할 때 Compose()를 사용한다. preprocess.py에 설정되어 있음
+                                    Normalize(0.0,255.0),
                                     RandomCrop(crop_size),
                                     HorizontalFlip(0.5),
                                     Normalize(mean, std) ])
@@ -22,15 +23,15 @@ def get_preprocessing_pipelines(modality):
                                     CenterCrop(crop_size),
                                     Normalize(mean, std) ])
 
-        preprocessing['test'] = preprocessing['val']
+        preprocessing['test'] = preprocessing['val']   # test와 val이 같다
 
     elif modality == 'raw_audio':
 
         preprocessing['train'] = Compose([
-                                    AddNoise( noise=np.load('./data/babbleNoise_resample_16K.npy')),
+                                    AddNoise( noise=np.load('./data/babbleNoise_resample_16K.npy')),   # train에만 노이즈를 추가해 준다.
                                     NormalizeUtterance()])
 
-        preprocessing['val'] = NormalizeUtterance()
+        preprocessing['val'] = NormalizeUtterance()   # z-score 정규화를 수행
 
         preprocessing['test'] = NormalizeUtterance()
 
@@ -59,3 +60,4 @@ def get_data_loaders(args):
                         num_workers=args.workers,
                         worker_init_fn=np.random.seed(1)) for x in ['train', 'val', 'test']}
     return dset_loaders
+    
