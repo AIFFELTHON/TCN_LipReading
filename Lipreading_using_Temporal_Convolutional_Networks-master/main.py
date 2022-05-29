@@ -160,9 +160,15 @@ def train(model, dset_loader, criterion, epoch, optimizer, logger):
     print(f'-------- dset_loader 순회 출력 --------')
     for data in dset_loader:
         print("Data: ", data)
-        # print("Waveform: {}\nSample rate: {}\nLabels: {}".format(data[0], data[1], data[2]))
+        print("Waveform: {}\nSample rate: {}\nLabels: {}".format(data[0], data[1], data[2]))
         break
     print()
+    print(f'@@@@@@ enumerate(dset_loader) @@@@@@')
+    x,y = dset_loader
+    print(f'*************************** x: {x} **************************')
+    print(f'*************************** type(x): {type(x)} **************************')
+    print(f'*************************** y: {y} **************************')
+    print(f'*************************** type(y): {type(y)} **************************')
     for batch_idx, (input, lengths, labels) in enumerate(dset_loader):
         # measure data loading time
         data_time.update(time.time() - end)  # 평균, 현재값 업데이트
@@ -283,6 +289,7 @@ def main():
         scheduler.adjust_lr(optimizer, args.init_epoch-1)  # learning rate 업데이트
 
     epoch = args.init_epoch  # epoch 초기화
+    print()
 
     while epoch < args.epochs:
         model = train(model, dset_loaders['train'], criterion, epoch, optimizer, logger)  # 모델 학습
