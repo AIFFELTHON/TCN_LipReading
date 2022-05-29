@@ -5,6 +5,9 @@ from lipreading.dataset import MyDataset, pad_packed_collate
 
 
 def get_preprocessing_pipelines(modality):
+    print()
+    print(f'--------------------- modality: {modality}')
+    print()
     # -- preprocess for the video stream
     preprocessing = {}
     # -- LRW config
@@ -34,12 +37,24 @@ def get_preprocessing_pipelines(modality):
         preprocessing['val'] = NormalizeUtterance()   # z-score 정규화를 수행
 
         preprocessing['test'] = NormalizeUtterance()
+    
+    print()
+    print(f'****************** {preprocessing} *******************')
+    print()
 
     return preprocessing
 
 
 def get_data_loaders(args):
+    print(f'******** args.modality: {args.modality}')
+    print()
     preprocessing = get_preprocessing_pipelines( args.modality)
+    
+    print()
+    print(f'preprocessing[train] {preprocessing["train"]}')
+    print(f'preprocessing[val] {preprocessing["val"]}')
+    print(f'preprocessing[test] {preprocessing["test"]}')
+    print()
 
     # create dataset object for each partition
     dsets = {partition: MyDataset(
@@ -51,13 +66,26 @@ def get_data_loaders(args):
                 preprocessing_func=preprocessing[partition],
                 data_suffix='.npz'
                 ) for partition in ['train', 'val', 'test']}
+
+    print()
+    print(f'dsets: {dsets}')
+    print(f'type? {type(dsets)}')
+    print(f'len? {len(dsets)}')
+    print()
+    
     dset_loaders = {x: torch.utils.data.DataLoader(
                         dsets[x],
                         batch_size=args.batch_size,
                         shuffle=True,
-                        collate_fn=pad_packed_collate,
+                        # collate_fn=pad_packed_collate,
                         pin_memory=True,
-                        num_workers=args.workers,
+                        # num_workers=args.workers,
+                        num_workers=2,
                         worker_init_fn=np.random.seed(1)) for x in ['train', 'val', 'test']}
+    print()
+    print(f'dset_loaders: {dset_loaders}')
+    print(f'type? {type(dset_loaders)}')
+    print(f'len? {len(dset_loaders)}')
+    print()
     return dset_loaders
     

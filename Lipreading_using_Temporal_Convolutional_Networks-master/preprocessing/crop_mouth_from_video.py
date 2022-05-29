@@ -37,7 +37,8 @@ def load_args(default_config=None):
     parser.add_argument('--stop-idx', default=68, type=int, help='the end of landmark index')
     parser.add_argument('--window-margin', default=12, type=int, help='window margin for smoothed_landmarks')
     # -- convert to gray scale
-    parser.add_argument('--convert-gray', default=False, action='store_true', help='convert2grayscale')
+    # parser.add_argument('--convert-gray', default=False, action='store_true', help='convert2grayscale')
+    parser.add_argument('--convert-gray', default=True, action='store_true', help='convert2grayscale')
     # -- test set only
     parser.add_argument('--testset-only', default=False, action='store_true', help='process testing set only')
 

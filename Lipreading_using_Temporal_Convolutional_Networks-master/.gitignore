@@ -7,3 +7,5 @@ __pycache__/
 *.tar
 datasets/outputs
 .DS_Store
+
+train_logs

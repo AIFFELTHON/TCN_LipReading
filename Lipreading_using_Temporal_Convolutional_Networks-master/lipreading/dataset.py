@@ -70,12 +70,16 @@ class MyDataset(object):
     def _get_label_from_path(self, x):
         return x.split('/')[self.label_idx]
 
-    def _get_files_for_partition(self):
+    def _get_files_for_partition(self):  ##### 여기 확인!!
         # get rgb/mfcc file paths
 
         dir_fp = self._data_dir
         if not dir_fp:
             return
+        print(f'dir_fp: {dir_fp}')
+        print()
+        print(f'self._data_partition: {self._data_partition}')
+        print()
 
         # get npy/npz/mp4 files
         search_str_npz = os.path.join(dir_fp, '*', self._data_partition, '*.npz')   # npz : 여러개의 리스트를 한번에 저장하기 위한 포맷
@@ -85,8 +89,18 @@ class MyDataset(object):
         self._data_files.extend( glob.glob( search_str_npy ) )   # list.extend() : npy파일명을 _data_files에 추가한다.
         self._data_files.extend( glob.glob( search_str_mp4 ) )   # list.extend() : mp4파일명을 _data_files에 추가한다.
 
+        print()
+        print(f'------------ search_str_npz: {search_str_npz}')
+        print(f'------------ search_str_npz: {search_str_npy}')
+        print(f'------------ search_str_npz: {search_str_mp4}')
+        print()
+
         # If we are not using the full set of labels, remove examples for labels not used
         self._data_files = [ f for f in self._data_files if f.split('/')[self.label_idx] in self._labels ]
+        
+        print(" ")
+        print("-========self._data_files======")
+        print(self._data_files)
 
 
     def load_data(self, filename):
@@ -127,16 +141,42 @@ class MyDataset(object):
 
 
     def __getitem__(self, idx):
+        print()
+        print(f'--------- __getitem__ {idx} ---------')
 
         raw_data = self.load_data(self.list[idx][0])
+        
+        print()
+        # print(f'--------- raw_data: {raw_data} ---------')
+        print(f'--------- len(raw_data): {len(raw_data)} ---------')
+        print(f'--------- type(raw_data): {type(raw_data)} ---------')
+        print(f'--------- raw_data.shape: {raw_data.shape} ---------')
         # -- perform variable length on training set
         if ( self._data_partition == 'train' ) and self.is_var_length:
             data = self._apply_variable_length_aug(self.list[idx][0], raw_data)
         else:
             data = raw_data
+        
+        print()
+        # print(f'--------- data: {data} ---------')
+        print(f'--------- len(data): {len(data)} ---------')
+        print(f'--------- type(data): {type(data)} ---------')
+        print(f'--------- data.shape: {data.shape} ---------')
         preprocess_data = self.preprocessing_func(data)
+        # preprocess_data = None
+        
+        # print()
+        # print(f'--------- preprocess_data: {preprocess_data} ---------')
+        # print(f'--------- len(preprocess_data): {len(preprocess_data)} ---------')
+        # print(f'--------- type(preprocess_data): {type(preprocess_data)} ---------')
+        # print(f'--------- preprocess_data.shape: {preprocess_data.shape} ---------')
+        
         label = self.list[idx][1]
-        return preprocess_data, label
+        print()
+        print(f'--------- label: {label} ---------')
+        
+        # return preprocess_data, label
+        return label
 
 
     def __len__(self):
@@ -144,6 +184,17 @@ class MyDataset(object):
 
 
 def pad_packed_collate(batch):
+    print()
+    print(f'------ batch: {batch}')
+    print(f'------ len(batch): {len(batch)}')
+    print(f'------ type(batch): {type(batch)}')
+    batch = np.array(batch)  # (32,)
+    print(f'------ batch.shape: {batch.shape}')
+    print(f'------ batch[0].shape: {batch[0].shape}') 
+    print(f'------ batch[0].shape[0]: {batch[0].shape[0]}') 
+    print(f'------ sorted(batch): {sorted(batch, key=lambda x: x[0].shape[0], reverse=True)}')
+    print(f'------ zip(batch): {zip(*[(a, a.shape[0], b) for (a, b) in sorted(batch, key=lambda x: x[0].shape[0], reverse=True)])}')
+    print()
     if len(batch) == 1:
         data, lengths, labels_np, = zip(*[(a, a.shape[0], b) for (a, b) in sorted(batch, key=lambda x: x[0].shape[0], reverse=True)])
         data = torch.FloatTensor(data)
