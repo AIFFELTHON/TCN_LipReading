@@ -22,13 +22,13 @@ class Compose(object):
         self.preprocess = preprocess
 
     def __call__(self, sample):
-        print()
+        # print()
         # print(f'------------- type(sample): {type(sample)}')
         # print(f'------------- len(sample): {len(sample)}')
         # print(f'------------- sample.shape: {sample.shape}')
         # print(f'------------- self.preprocess: {self.preprocess}')
         # print(f'------------- t(sample): {self.preprocess(sample)}')
-        print()
+        # print()
         for t in self.preprocess:
             sample = t(sample)
         return sample   # preprocess에 담긴 각 augmentation 전처리가 sample에 담겨 반환된다.
