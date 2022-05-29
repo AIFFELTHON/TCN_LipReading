@@ -185,7 +185,9 @@ def pad_packed_collate(batch):
     # print()
     # print(f'------ len(batch): {len(batch)}')
     # print(f'------ type(batch): {type(batch)}')
-    batch = np.array(batch, dtype=object)  # (32, 2)
+    
+    batch = np.array(batch, dtype=object)  # list 라서 numpy 로 변경, 내부 요소 리스트 길이가 달라서 dytpe=object 설정 필요
+    
     # print(f'------ batch.shape: {batch.shape}')
     # print(f'------ batch[0].shape: {batch[0].shape}') 
     # print(f'------ batch[0].shape[0]: {batch[0].shape[0]}') 

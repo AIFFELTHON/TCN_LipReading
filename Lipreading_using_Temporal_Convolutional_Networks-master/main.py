@@ -231,7 +231,7 @@ def get_model_from_json():
 # main() 함수
 def main():
     
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"  # GPU 선택
 
     # -- logging
     save_path = get_save_folder( args)  # 저장 디렉토리
