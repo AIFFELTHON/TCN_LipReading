@@ -77,10 +77,10 @@ def get_data_loaders(args):
                         dsets[x],
                         batch_size=args.batch_size,
                         shuffle=True,
-                        # collate_fn=pad_packed_collate,
+                        collate_fn=pad_packed_collate,
                         pin_memory=True,
                         # num_workers=args.workers,
-                        num_workers=2,
+                        num_workers=0,
                         worker_init_fn=np.random.seed(1)) for x in ['train', 'val', 'test']}
     print()
     print(f'dset_loaders: {dset_loaders}')

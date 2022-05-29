@@ -148,9 +148,9 @@ class MyDataset(object):
         
         print()
         # print(f'--------- raw_data: {raw_data} ---------')
-        print(f'--------- len(raw_data): {len(raw_data)} ---------')
-        print(f'--------- type(raw_data): {type(raw_data)} ---------')
-        print(f'--------- raw_data.shape: {raw_data.shape} ---------')
+        # print(f'--------- len(raw_data): {len(raw_data)} ---------')
+        # print(f'--------- type(raw_data): {type(raw_data)} ---------')
+        # print(f'--------- raw_data.shape: {raw_data.shape} ---------')
         # -- perform variable length on training set
         if ( self._data_partition == 'train' ) and self.is_var_length:
             data = self._apply_variable_length_aug(self.list[idx][0], raw_data)
@@ -159,9 +159,9 @@ class MyDataset(object):
         
         print()
         # print(f'--------- data: {data} ---------')
-        print(f'--------- len(data): {len(data)} ---------')
-        print(f'--------- type(data): {type(data)} ---------')
-        print(f'--------- data.shape: {data.shape} ---------')
+        # print(f'--------- len(data): {len(data)} ---------')
+        # print(f'--------- type(data): {type(data)} ---------')
+        # print(f'--------- data.shape: {data.shape} ---------')
         preprocess_data = self.preprocessing_func(data)
         # preprocess_data = None
         
@@ -175,8 +175,7 @@ class MyDataset(object):
         print()
         print(f'--------- label: {label} ---------')
         
-        # return preprocess_data, label
-        return label
+        return preprocess_data, label
 
 
     def __len__(self):
@@ -185,14 +184,14 @@ class MyDataset(object):
 
 def pad_packed_collate(batch):
     print()
-    print(f'------ batch: {batch}')
+    # print(f'------ batch: {batch}')
     print(f'------ len(batch): {len(batch)}')
     print(f'------ type(batch): {type(batch)}')
     batch = np.array(batch)  # (32,)
     print(f'------ batch.shape: {batch.shape}')
     print(f'------ batch[0].shape: {batch[0].shape}') 
     print(f'------ batch[0].shape[0]: {batch[0].shape[0]}') 
-    print(f'------ sorted(batch): {sorted(batch, key=lambda x: x[0].shape[0], reverse=True)}')
+    # print(f'------ sorted(batch): {sorted(batch, key=lambda x: x[0].shape[0], reverse=True)}')
     print(f'------ zip(batch): {zip(*[(a, a.shape[0], b) for (a, b) in sorted(batch, key=lambda x: x[0].shape[0], reverse=True)])}')
     print()
     if len(batch) == 1:
@@ -203,14 +202,30 @@ def pad_packed_collate(batch):
     if len(batch) > 1:
         data_list, lengths, labels_np = zip(*[(a, a.shape[0], b) for (a, b) in sorted(batch, key=lambda x: x[0].shape[0], reverse=True)])
 
-        if data_list[0].ndim == 3:
+        data_np = 0
+        print()
+        # print(f'+++++++++++ data_list: {data_list}')
+        print(f'+++++++++++ type(data_list): {type(data_list)}')
+        print(f'+++++++++++ len(data_list): {len(data_list)}')
+        print(f'+++++++++++ data_list[0].shape: {data_list[0].shape}')
+        print(f'+++++++++++ data_list[0].ndim: {data_list[0].ndim}')
+        print()
+
+        # if data_list[0].ndim == 3:
+        if data_list[0].ndim >= 3:
             max_len, h, w = data_list[0].shape  # since it is sorted, the longest video is the first one
             data_np = np.zeros(( len(data_list), max_len, h, w))
+            print(f'******** 1 type(data_np): {type(data_np)}')
+            print(f'******** 1 data_np.shape: {data_np.shape}')
         elif data_list[0].ndim == 1:
             max_len = data_list[0].shape[0]
             data_np = np.zeros( (len(data_list), max_len))
+            print(f'******** 2 type(data_np): {type(data_np)}')
+            print(f'******** 2 data_np.shape: {data_np.shape}')
         for idx in range( len(data_np)):
             data_np[idx][:data_list[idx].shape[0]] = data_list[idx]
+            print(f'******** 3 type(data_np): {type(data_np)}')
+            print(f'******** 3 data_np.shape: {data_np.shape}')
         data = torch.FloatTensor(data_np)
 
     labels = torch.LongTensor(labels_np)

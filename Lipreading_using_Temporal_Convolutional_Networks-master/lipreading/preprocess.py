@@ -23,9 +23,9 @@ class Compose(object):
 
     def __call__(self, sample):
         print()
-        print(f'------------- type(sample): {type(sample)}')
-        print(f'------------- len(sample): {len(sample)}')
-        print(f'------------- sample.shape: {sample.shape}')
+        # print(f'------------- type(sample): {type(sample)}')
+        # print(f'------------- len(sample): {len(sample)}')
+        # print(f'------------- sample.shape: {sample.shape}')
         # print(f'------------- self.preprocess: {self.preprocess}')
         # print(f'------------- t(sample): {self.preprocess(sample)}')
         print()
@@ -97,13 +97,7 @@ class CenterCrop(object):
         Returns:
             numpy.ndarray: Cropped image.
         """
-        print()
-        print(f'--------- len(frames): {len(frames)} ---------')
-        print(f'--------- type(frames): {type(frames)} ---------')
-        print(f'--------- frames.shape: {frames.shape} ---------')
-        print()
-        # t, h, w = frames.shape
-        t, h, w, c = frames.shape
+        t, h, w = frames.shape
         th, tw = self.size   # 자르려고 지정한 높이와 넓이 사이즈
         delta_w = int(round((w - tw))/2.)
         delta_h = int(round((h - th))/2.)
@@ -125,11 +119,7 @@ class RandomCrop(object):
         Returns:
             numpy.ndarray: Cropped image.
         """
-        print()
-        print(f'------- frames.shape: {frames.shape}')
-        print()
-        # t, h, w = frames.shape  # size: 96,96
-        t, h, w, c = frames.shape  # size: 96,96
+        t, h, w = frames.shape  # size: 96,96
         th, tw = self.size
         delta_w = random.randint(0, w-tw)
         delta_h = random.randint(0, h-th)
@@ -154,14 +144,7 @@ class HorizontalFlip(object):   # HorizontalFlip(비율값 입)
         Returns:
             numpy.ndarray: Cropped image.
         """
-        print()
-        print(f'--------- len(frames): {len(frames)} ---------')
-        print(f'--------- type(frames): {type(frames)} ---------')
-        print(f'--------- frames.shape: {frames.shape} ---------')
-        print()
-        # t, h, w = frames.shape
-        t, h, w, c = frames.shape
-        # frames[3].squeeze()
+        t, h, w = frames.shape
         if random.random() < self.flip_ratio:
             for index in range(t):
                 frames[index] = cv2.flip(frames[index], 1)
