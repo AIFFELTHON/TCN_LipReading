@@ -47,7 +47,7 @@ python preprocessing/extract_audio_from_video.py \
 --save-direc ./datasets/audio_data/ \
 ```
 
-### Train - Success
+### Train
 
 #### 수정된 부분
 
@@ -104,7 +104,7 @@ def get_data_loaders(args):
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
 --annonation-direc ../sample/ \
---data-dir ./datasets/visual_data/ \
+--data-dir ./datasets/visual_data/
 ```
 
 2. Train an audio-only model
@@ -115,20 +115,18 @@ python main.py \
 --modality raw_audio \
 --config-path ./configs/lrw_resnet18_mstcn.json \
 --annonation-direc ../sample/ \
---data-dir ./datasets/audio_data/ \
+--data-dir ./datasets/audio_data/
 ```
 
-### Test - Fail
-
-#### ValueError: num_samples should be a positive integer value, but got num_samples=0
+### Test
 
 1. Evaluate the visual-only performance (lipreading)
 
 ```bash
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
---annonation-direc ../sample/AFTERNOON/ \
---data-dir ./datasets/visual_data/AFTERNOON/ \
+--annonation-direc ../sample/ \
+--data-dir ./datasets/visual_data/ \
 --test
 ```
 
@@ -138,20 +136,18 @@ python main.py \
 python main.py \
 --modality raw_audio \
 --config-path ./configs/lrw_resnet18_mstcn.json \
---annonation-direc ../sample/AFTERNOON/ \
---data-dir ./datasets/audio_data/AFTERNOON/ \
+--annonation-direc ../sample/ \
+--data-dir ./datasets/audio_data/ \
 --test
 ```
 
-### Extract Embeddings - Fail
-
-#### ValueError: num_samples should be a positive integer value, but got num_samples=0
+### Extract Embeddings
 
 ```bash
 python main.py \
 --extract-feats \
---config-path ./configs/lrw_resnet18_mstcn.json \
---annonation-direc ../sample/AFTERNOON/sample/ \
---data-dir ./datasets/visual_data/AFTERNOON/sample/ \
---test
+--config-path <MODEL-JSON-PATH> \
+--model-path <MODEL-PATH> \
+--mouth-patch-path <MOUTH-PATCH-PATH> \
+--mouth-embedding-out-path <OUTPUT-PATH>
 ```
