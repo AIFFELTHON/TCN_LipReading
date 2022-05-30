@@ -305,4 +305,5 @@ def main():
 # 해당 모듈이 임포트된 경우가 아니라 인터프리터에서 직접 실행된 경우에만, if문 이하의 코드를 돌리라는 명령
 # => main.py 실행할 경우 제일 먼저 호출되는 부분
 if __name__ == '__main__':  # 현재 스크립트 파일이 실행되는 상태 파악
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     main()  # main() 함수 호출
