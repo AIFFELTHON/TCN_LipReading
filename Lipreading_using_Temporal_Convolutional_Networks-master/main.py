@@ -101,8 +101,19 @@ def extract_feats(model):
     """
     model.eval()  # evaluation 과정에서 사용하지 않아야 하는 layer들을 알아서 off 시키도록 하는 함수
     preprocessing_func = get_preprocessing_pipelines()['test']  # test 전처리
-    data = preprocessing_func(np.load(args.mouth_patch_path)['data'])  # data: TxHxW
-    return model(torch.FloatTensor(data)[None, None, :, :, :].cuda(), lengths=[data.shape[0]])
+    
+    mouth_patch_path = args.mouth_patch_path.replace('.','')
+    dir_name = os.path.dirname(os.path.abspath(__file__))
+    dir_name = dir_name + mouth_patch_path
+    
+    data_paths = [os.path.join(pth, f) for pth, dirs, files in os.walk(dir_name) for f in files]
+    
+    npz_files = np.load(data_paths[0])['data']
+    
+    data = preprocessing_func(npz_files)  # data: TxHxW
+    # data = preprocessing_func(np.load(args.mouth_patch_path)['data'])  # data: TxHxW
+    return data_paths[0], model(torch.FloatTensor(data)[None, None, :, :, :].cuda(), lengths=[data.shape[0]])
+    # return model(torch.FloatTensor(data)[None, None, :, :, :].cuda(), lengths=[data.shape[0]])
 
 
 # 평가
@@ -231,6 +242,7 @@ def get_model_from_json():
 # main() 함수
 def main():
     
+    os.environ['CUDA_LAUNCH_BLOCKING']="1"
     os.environ["CUDA_VISIBLE_DEVICES"]="0"  # GPU 선택 코드 추가
 
     # -- logging
@@ -249,7 +261,7 @@ def main():
     optimizer = get_optimizer(args, optim_policies=model.parameters())
     # -- get learning rate scheduler
     scheduler = CosineScheduler(args.lr, args.epochs)  # 코사인 스케줄러 설정
-
+    
     if args.model_path:
         # tar 파일이 있는지 확인, 없으면 AssertionError 메시지를 띄움
         assert args.model_path.endswith('.tar') and os.path.isfile(args.model_path), \
@@ -266,7 +278,13 @@ def main():
             logger.info('Model has been successfully loaded from {}'.format( args.model_path ))  # 로거 INFO 작성
         # feature extraction
         if args.mouth_patch_path:
-            save2npz( args.mouth_embedding_out_path, data = extract_feats(model).cpu().detach().numpy())  # npz 파일 저장
+                        
+            filename, embeddings = extract_feats(model)
+            filename = filename.split('/')[-1]
+            save_npz_path = os.path.join(args.mouth_embedding_out_path, filename)
+            
+            save2npz(save_npz_path, data = embeddings.cpu().detach().numpy())  # npz 파일 저장
+            # save2npz( args.mouth_embedding_out_path, data = extract_feats(model).cpu().detach().numpy())  # npz 파일 저장
             return
         # if test-time, performance on test partition and exit. Otherwise, performance on validation and continue (sanity check for reload)
         if args.test:
