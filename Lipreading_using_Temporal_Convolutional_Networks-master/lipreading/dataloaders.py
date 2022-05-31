@@ -4,7 +4,7 @@ from lipreading.preprocess import *
 from lipreading.dataset import MyDataset, pad_packed_collate
 
 
-def get_preprocessing_pipelines(modality):
+def get_preprocessing_pipelines(modality='video'):
     # print()
     # print(f'--------------------- modality: {modality}')
     # print()
@@ -75,7 +75,8 @@ def get_data_loaders(args):
     
     dset_loaders = {x: torch.utils.data.DataLoader(
                         dsets[x],
-                        batch_size=args.batch_size,
+                        # batch_size=args.batch_size,  # 32
+                        batch_size=8,
                         shuffle=True,
                         collate_fn=pad_packed_collate,
                         pin_memory=True,

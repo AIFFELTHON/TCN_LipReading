@@ -104,7 +104,7 @@ def get_data_loaders(args):
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
 --annonation-direc ../sample/ \
---data-dir ./datasets/visual_data/
+--data-dir ./datasets/visual_data
 ```
 
 2. Train an audio-only model
@@ -115,7 +115,7 @@ python main.py \
 --modality raw_audio \
 --config-path ./configs/lrw_resnet18_mstcn.json \
 --annonation-direc ../sample/ \
---data-dir ./datasets/audio_data/
+--data-dir ./datasets/audio_data
 ```
 
 ### Test
@@ -125,7 +125,7 @@ python main.py \
 ```bash
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
---annonation-direc ../sample/ \
+--model-path ./models/lrw_resnet18_mstcn.pth.tar \
 --data-dir ./datasets/visual_data/ \
 --test
 ```
@@ -136,7 +136,7 @@ python main.py \
 python main.py \
 --modality raw_audio \
 --config-path ./configs/lrw_resnet18_mstcn.json \
---annonation-direc ../sample/ \
+--model-path ./models/lrw_resnet18_mstcn_audio.pth.tar \
 --data-dir ./datasets/audio_data/ \
 --test
 ```
@@ -146,8 +146,9 @@ python main.py \
 ```bash
 python main.py \
 --extract-feats \
---config-path <MODEL-JSON-PATH> \
---model-path <MODEL-PATH> \
---mouth-patch-path <MOUTH-PATCH-PATH> \
---mouth-embedding-out-path <OUTPUT-PATH>
+--data-dir ./datasets/visual_data/ \
+--config-path ./configs/lrw_resnet18_mstcn.json \
+--model-path ./models/lrw_resnet18_mstcn.pth.tar \
+--mouth-patch-path ./datasets/visual_data/AFTERNOON/test/ \
+--mouth-embedding-out-path ../sample/embeddings
 ```
