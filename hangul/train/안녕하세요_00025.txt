@@ -1,5 +1,0 @@
-Disk reference: 1 
-Channel: Sejong
-Program start: 2022-05-30 18:40:00 +0000 
-Clip start: 5.1 seconds 
-Duration: 9.0 seconds
