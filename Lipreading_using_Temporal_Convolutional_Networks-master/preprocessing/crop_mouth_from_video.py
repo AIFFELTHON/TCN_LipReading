@@ -6,6 +6,8 @@
 
 """ Crop Mouth ROIs from videos for lipreading"""
 
+# from msilib.schema import File
+from ast import Pass
 import os
 import cv2  # OpenCV 라이브러리
 import glob  # 리눅스식 경로 표기법을 사용하여 원하는 폴더/파일 리스트 얻음
@@ -13,8 +15,11 @@ import argparse  # 명령행 인자를 파싱해주는 모듈
 import numpy as np
 from collections import deque  # collections 모듈에 있는 데크 불러오기 # 데크: 스택과 큐를 합친 자료구조
 
-from utils import *  # utils.py 모듈에 있는 모든 함수(read_txt_lines(), save2npz(), read_video()) 불러오기
+from utils import *  # utils.py 모듈에 있는 모든 함수 불러오기
 from transform import *  # transform.py 모듈에 있는 모든 함수(linear_interpolate(), warp_img(), apply_transform(), cut_patch(), convert_bgr2gray()) 불러오기
+
+import dlib  # face landmark 찾는 라이브러리
+from PIL import Image
 
 
 # 인자값을 받아서 처리하는 함수
@@ -152,12 +157,87 @@ for filename_idx, line in enumerate(lines):
     filename, person_id = line.split(',')
     print('idx: {} \tProcessing.\t{}'.format(filename_idx, filename))  # 파일 인덱스번호, 파일명 출력
 
-    video_pathname = os.path.join(args.video_direc, filename+'.mp4')  # 영상디렉토리 + 파일명.mp4
+    # video_pathname = os.path.join(args.video_direc, filename+'.mp4')  # 영상디렉토리 + 파일명.mp4
+    video_pathname = os.path.join(args.video_direc, filename+'.avi')  # 영상디렉토리 + 파일명.avi
     landmarks_pathname = os.path.join(args.landmark_direc, filename+'.npz')  # 저장디렉토리 + 랜드마크 파일명.npz
     dst_pathname = os.path.join( args.save_direc, filename+'.npz')  # 저장디렉토리 + 결과영상 파일명.npz
 
     # 파일이 있는지 확인, 없으면 AssertionError 메시지를 띄움
     assert os.path.isfile(video_pathname), "File does not exist. Path input: {}".format(video_pathname)  # 원하는 조건의 변수값을 보증하기 위해 사용
+    
+    # video 에 대한 face landmark npz 파일이 없는 경우 직접 생성
+    if not os.path.exists(landmarks_pathname):
+        
+        def get_face_landmark(frame_idx, img):
+            detector_hog = dlib.get_frontal_face_detector()
+            dlib_rects = detector_hog(img, 1)
+            model_path = os.path.dirname(os.path.abspath(__file__)) + '/shape_predictor_68_face_landmarks.dat'
+            landmark_predictor = dlib.shape_predictor(model_path)
+            
+            list_landmarks = []
+            for dlib_rect in dlib_rects:
+                points = landmark_predictor(img, dlib_rect)
+                list_points = list(map(lambda p: (p.x, p.y), points.parts()))
+                list_landmarks.append(list_points)
+            
+            for dlib_rect, landmark in zip(dlib_rects, list_landmarks):
+                
+                CROP_START_X = landmark[5][0]
+                CROP_START_Y = landmark[29][1]
+                CROP_END_X = landmark[11][0]
+                CROP_END_Y = landmark[8][1]
+                
+                crop_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 입술 crop
+                
+                SAVE_IMG_SIZE = (96,96)
+                WORD = video_pathname.split('/')[-1].split('_')[0]
+                WORD_NUM = video_pathname.split('/')[-1][:-4]
+                SAVE_IMG_PATH = os.path.dirname(os.path.abspath(__file__)) + f'/{WORD}/{WORD_NUM}/{WORD_NUM}_{frame_idx}.png'
+                if not os.path.exists(os.path.dirname(SAVE_IMG_PATH)):                            
+                    os.makedirs(os.path.dirname(SAVE_IMG_PATH))  # 디렉토리 생성
+                
+                save_img = Image.fromarray(crop_img)  # numpy to image
+                save_img = save_img.resize(SAVE_IMG_SIZE)  # 입술 이미지 크기 (96,96)
+                save_img.save(SAVE_IMG_PATH)  # 입술 이미지 저장
+                
+                crop_img = np.asarray(save_img)  # image to numpy
+                
+                return crop_img           
+        
+        
+        target_frames = 70
+        # target_frames = 29
+        
+        video = videoToArray(video_pathname, is_gray=args.convert_gray)
+        output_video = frameAdjust(video, target_frames)
+        
+        multi_sub_landmarks = []
+        # for frame_idx, frame in enumerate(read_video(video_pathname)):
+        for frame_idx, frame in enumerate(output_video):
+            print(f'\n{frame_idx}번째 프레임 랜드마크 찾기')
+                
+            # print()
+            # print(f'#### type(frame): {type(frame)}')
+            # print(f'#### len(frame): {len(frame)}')
+            # print(f'#### frame.shape: {frame.shape}')
+            # print()
+                
+            facial_landmarks = {'facial_landmarks': get_face_landmark(frame_idx, frame)}
+            person_landmarks = {person_id: facial_landmarks}
+            multi_sub_landmarks.append(person_landmarks)
+            
+            print()
+            print('저장')
+            print()
+        
+        multi_sub_landmarks = np.array(multi_sub_landmarks)
+        save2npz(landmarks_pathname, data=multi_sub_landmarks)
+        
+        print()
+        print('npz 저장')
+        print()
+        
+        
     # 파일이 있는지 확인, 없으면 AssertionError 메시지를 띄움
     assert os.path.isfile(landmarks_pathname), "File does not exist. Path input: {}".format(landmarks_pathname)  # 원하는 조건의 변수값을 보증하기 위해 사용
 
