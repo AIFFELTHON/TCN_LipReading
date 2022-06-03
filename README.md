@@ -6,21 +6,23 @@ How to run Lipreading_using_TCN project
 1. 환경
     - GCP Ubuntu 18.04.6 LTS
     - Anaconda 사용
-    - python 3.8.13
+    - python 3.7.13
     - CUDA Version: 11.4
 2. 라이브러리 설치
     - pip install -r requirements.txt
     - audio 전처리하기 위해 ffmpeg 설치 필요
         - pip install ffmpeg-python
-    - 참고: LRW 데이터셋 face landmark 는 csv 파일로 제공되므로 dlib 필요 없음
+    - 참고: LRW 데이터셋 face landmark 는 csv 파일로 제공되므로 라이브러리(dlib, face_alignment 등) 필요 없음
         - pip install cmake
         - pip install dlib==19.17.0
-    - pytorch tensor 처리 라이브러리로 torchvision 설치
+        - pip install face-alignment
+    - pytorch image tensor 처리 라이브러리인 torchvision 설치
         - pip install torchvision==0.2.0
 3. 데이터셋: [The Oxford-BBC Lip Reading in the Wild (LRW)](https://www.robots.ox.ac.uk/~vgg/data/lip_reading/lrw1.html)
     - 데이터셋 다운로드 받으려면 서약서 작성해서 이메일(rob.cooper@bbc.co.uk) 보내고 승인받은 비밀번호 입력해야 함
     - [데이터셋 서약서 다운로드 페이지](https://www.bbc.co.uk/rd/projects/lip-reading-datasets)
-    - **조건 없이 다운받을 수 있는 샘플 데이터 1개(AFTERNOON.mp4, AFTERNOON.txt)를 복제해서 실행 도전하는 중**
+    - **조건 없이 다운받을 수 있는 샘플 데이터 1개(AFTERNOON.mp4, AFTERNOON.txt)를 복제해서 실행 도전 성공**
+    - **우리가 사용할 한국어 데이터 1개 복제해서 도전하는 중**
 
 ## Execution
 
