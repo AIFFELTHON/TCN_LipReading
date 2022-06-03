@@ -11,9 +11,12 @@ How to run Lipreading_using_TCN project
 2. 라이브러리 설치
     - pip install -r requirements.txt
     - audio 전처리하기 위해 ffmpeg 설치 필요
-    - 참고: face landmark 는 csv 파일로 제공되므로 dlib 필요 없음
+        - pip install ffmpeg-python
+    - 참고: LRW 데이터셋 face landmark 는 csv 파일로 제공되므로 dlib 필요 없음
         - pip install cmake
         - pip install dlib==19.17.0
+    - pytorch tensor 처리 라이브러리로 torchvision 설치
+        - pip install torchvision==0.2.0
 3. 데이터셋: [The Oxford-BBC Lip Reading in the Wild (LRW)](https://www.robots.ox.ac.uk/~vgg/data/lip_reading/lrw1.html)
     - 데이터셋 다운로드 받으려면 서약서 작성해서 이메일(rob.cooper@bbc.co.uk) 보내고 승인받은 비밀번호 입력해야 함
     - [데이터셋 서약서 다운로드 페이지](https://www.bbc.co.uk/rd/projects/lip-reading-datasets)
