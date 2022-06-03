@@ -76,10 +76,6 @@ class MyDataset(object):
         dir_fp = self._data_dir
         if not dir_fp:
             return
-        # print(f'dir_fp: {dir_fp}')
-        # print()
-        # print(f'self._data_partition: {self._data_partition}')
-        # print()
 
         # get npy/npz/mp4 files
         search_str_npz = os.path.join(dir_fp, '*', self._data_partition, '*.npz')   # npz : 여러개의 리스트를 한번에 저장하기 위한 포맷
@@ -89,24 +85,15 @@ class MyDataset(object):
         self._data_files.extend( glob.glob( search_str_npy ) )   # list.extend() : npy파일명을 _data_files에 추가한다.
         self._data_files.extend( glob.glob( search_str_mp4 ) )   # list.extend() : mp4파일명을 _data_files에 추가한다.
 
-        # print()
-        # print(f'------------ search_str_npz: {search_str_npz}')
-        # print(f'------------ search_str_npz: {search_str_npy}')
-        # print(f'------------ search_str_npz: {search_str_mp4}')
-        # print()
-
         # If we are not using the full set of labels, remove examples for labels not used
         self._data_files = [ f for f in self._data_files if f.split('/')[self.label_idx] in self._labels ]
-        
-        # print(" ")
-        # print("-========self._data_files======")
-        # print(self._data_files)
 
 
     def load_data(self, filename):
 
         try:
             if filename.endswith('npz'):    # endswith(문자열) : 해당 문자열로 끝나는지 여부를 true/false로 반환
+                # return np.load(filename, allow_pickle=True)['data']
                 return np.load(filename)['data']
             elif filename.endswith('mp4'):
                 return librosa.load(filename, sr=16000)[0][-19456:]   
@@ -141,38 +128,17 @@ class MyDataset(object):
 
 
     def __getitem__(self, idx):
-        # print()
-        # print(f'--------- __getitem__ {idx} ---------')
 
         raw_data = self.load_data(self.list[idx][0])
         
-        # print()
-        # print(f'--------- raw_data: {raw_data} ---------')
-        # print(f'--------- len(raw_data): {len(raw_data)} ---------')
-        # print(f'--------- type(raw_data): {type(raw_data)} ---------')
-        # print(f'--------- raw_data.shape: {raw_data.shape} ---------')
         # -- perform variable length on training set
         if ( self._data_partition == 'train' ) and self.is_var_length:
             data = self._apply_variable_length_aug(self.list[idx][0], raw_data)
         else:
             data = raw_data
         
-        # print()
-        # print(f'--------- data: {data} ---------')
-        # print(f'--------- len(data): {len(data)} ---------')
-        # print(f'--------- type(data): {type(data)} ---------')
-        # print(f'--------- data.shape: {data.shape} ---------')
         preprocess_data = self.preprocessing_func(data)
-        
-        # print()
-        # print(f'--------- preprocess_data: {preprocess_data} ---------')
-        # print(f'--------- len(preprocess_data): {len(preprocess_data)} ---------')
-        # print(f'--------- type(preprocess_data): {type(preprocess_data)} ---------')
-        # print(f'--------- preprocess_data.shape: {preprocess_data.shape} ---------')
-        
         label = self.list[idx][1]
-        # print()
-        # print(f'--------- label: {label} ---------')
         
         return preprocess_data, label
 
@@ -182,16 +148,9 @@ class MyDataset(object):
 
 
 def pad_packed_collate(batch):
-    # print()
-    # print(f'------ len(batch): {len(batch)}')
-    # print(f'------ type(batch): {type(batch)}')
     
     batch = np.array(batch, dtype=object)  # list 라서 numpy 로 변경, 내부 요소 리스트 길이가 달라서 dytpe=object 설정하는 코드 추가
     
-    # print(f'------ batch.shape: {batch.shape}')
-    # print(f'------ batch[0].shape: {batch[0].shape}') 
-    # print(f'------ batch[0].shape[0]: {batch[0].shape[0]}') 
-    # print()
     if len(batch) == 1:
         data, lengths, labels_np, = zip(*[(a, a.shape[0], b) for (a, b) in sorted(batch, key=lambda x: x[0].shape[0], reverse=True)])
         data = torch.FloatTensor(data)
@@ -200,28 +159,16 @@ def pad_packed_collate(batch):
     if len(batch) > 1:
         data_list, lengths, labels_np = zip(*[(a, a.shape[0], b) for (a, b) in sorted(batch, key=lambda x: x[0].shape[0], reverse=True)])
 
-        data_np = 0
-        # print()
-        # print(f'+++++++++++ type(data_list): {type(data_list)}')
-        # print(f'+++++++++++ len(data_list): {len(data_list)}')
-        # print(f'+++++++++++ data_list[0].shape: {data_list[0].shape}')
-        # print(f'+++++++++++ data_list[0].ndim: {data_list[0].ndim}')
-        # print()
+        data_np = 0  # data_np 변수 초기화하는 코드 추가
 
         if data_list[0].ndim == 3:
             max_len, h, w = data_list[0].shape  # since it is sorted, the longest video is the first one
             data_np = np.zeros(( len(data_list), max_len, h, w))
-            # print(f'******** 1 type(data_np): {type(data_np)}')
-            # print(f'******** 1 data_np.shape: {data_np.shape}')
         elif data_list[0].ndim == 1:
             max_len = data_list[0].shape[0]
             data_np = np.zeros( (len(data_list), max_len))
-            # print(f'******** 2 type(data_np): {type(data_np)}')
-            # print(f'******** 2 data_np.shape: {data_np.shape}')
         for idx in range( len(data_np)):
             data_np[idx][:data_list[idx].shape[0]] = data_list[idx]
-            # print(f'******** 3 type(data_np): {type(data_np)}')
-            # print(f'******** 3 data_np.shape: {data_np.shape}')
         data = torch.FloatTensor(data_np)
 
     labels = torch.LongTensor(labels_np)

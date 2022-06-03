@@ -5,5 +5,5 @@
 
 python preprocessing/extract_audio_from_video.py \
 --video-direc ../hangul/ \
---filename-path ../hangul/안녕하세요_detected_face.csv \
+--filename-path ../hangul/오늘_detected_face.csv \
 --save-direc ./datasets/audio_data/ 

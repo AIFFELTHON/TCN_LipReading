@@ -77,6 +77,11 @@ class Normalize(object):
         Returns:
             Tensor: Normalized Tensor image.
         """
+        print()
+        print(f'!!!!!! frames: {type(frames)}')
+        print(f'!!!!!! self.mean: {type(self.mean)}')
+        print(f'!!!!!! self.std: {type(self.std)}')
+        print()
         frames = (frames - self.mean) / self.std   # 편차를 표준 편차로 나눈 값 : z-score normalization
         return frames
 

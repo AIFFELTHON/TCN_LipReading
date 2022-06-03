@@ -19,7 +19,9 @@ from utils import *  # utils.py 모듈에 있는 모든 함수 불러오기
 from transform import *  # transform.py 모듈에 있는 모든 함수(linear_interpolate(), warp_img(), apply_transform(), cut_patch(), convert_bgr2gray()) 불러오기
 
 import dlib  # face landmark 찾는 라이브러리
+import face_alignment  # face landmark 찾는 라이브러리
 from PIL import Image
+from torchvision.transforms.functional import to_tensor
 
 
 # 인자값을 받아서 처리하는 함수
@@ -42,7 +44,6 @@ def load_args(default_config=None):
     parser.add_argument('--stop-idx', default=68, type=int, help='the end of landmark index')
     parser.add_argument('--window-margin', default=12, type=int, help='window margin for smoothed_landmarks')
     # -- convert to gray scale
-    # parser.add_argument('--convert-gray', default=False, action='store_true', help='convert2grayscale')
     parser.add_argument('--convert-gray', default=True, action='store_true', help='convert2grayscale')
     # -- test set only
     parser.add_argument('--testset-only', default=False, action='store_true', help='process testing set only')
@@ -165,9 +166,10 @@ for filename_idx, line in enumerate(lines):
     # 파일이 있는지 확인, 없으면 AssertionError 메시지를 띄움
     assert os.path.isfile(video_pathname), "File does not exist. Path input: {}".format(video_pathname)  # 원하는 조건의 변수값을 보증하기 위해 사용
     
-    # video 에 대한 face landmark npz 파일이 없는 경우 직접 생성
-    if not os.path.exists(landmarks_pathname):
+    # video 에 대한 face landmark npz 파일이 없고 영상 확장자 avi 인 경우 dlib 으로 직접 npz 파일 생성
+    if not os.path.exists(landmarks_pathname) and video_pathname.split('.')[-1] == 'avi':
         
+        # dlib 사용해서 face landmark 찾기
         def get_face_landmark(frame_idx, img):
             detector_hog = dlib.get_frontal_face_detector()
             dlib_rects = detector_hog(img, 1)
@@ -193,79 +195,98 @@ for filename_idx, line in enumerate(lines):
                 WORD = video_pathname.split('/')[-1].split('_')[0]
                 WORD_NUM = video_pathname.split('/')[-1][:-4]
                 SAVE_IMG_PATH = os.path.dirname(os.path.abspath(__file__)) + f'/{WORD}/{WORD_NUM}/{WORD_NUM}_{frame_idx}.png'
-                if not os.path.exists(os.path.dirname(SAVE_IMG_PATH)):                            
-                    os.makedirs(os.path.dirname(SAVE_IMG_PATH))  # 디렉토리 생성
+                # if not os.path.exists(os.path.dirname(SAVE_IMG_PATH)):                            
+                #     os.makedirs(os.path.dirname(SAVE_IMG_PATH))  # 디렉토리 생성
                 
                 save_img = Image.fromarray(crop_img)  # numpy to image
                 save_img = save_img.resize(SAVE_IMG_SIZE)  # 입술 이미지 크기 (96,96)
-                save_img.save(SAVE_IMG_PATH)  # 입술 이미지 저장
+                # save_img.save(SAVE_IMG_PATH)  # 입술 이미지 저장
                 
                 crop_img = np.asarray(save_img)  # image to numpy
+                crop_img = to_tensor(crop_img)
                 
                 return crop_img           
         
         
-        target_frames = 70
-        # target_frames = 29
+        target_frames = 29  # 원하는 프레임 개수
+        # video = videoToArray(video_pathname, is_gray=args.convert_gray)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
+        video = videoToArray(video_pathname, is_gray=False)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
+        output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)
         
-        video = videoToArray(video_pathname, is_gray=args.convert_gray)
-        output_video = frameAdjust(video, target_frames)
+        def get_yield(output_video):
+            for frame in output_video:
+                yield frame
         
         multi_sub_landmarks = []
-        # for frame_idx, frame in enumerate(read_video(video_pathname)):
-        for frame_idx, frame in enumerate(output_video):
+        person_landmarks = []
+        frame_landmarks = []
+        for frame_idx, frame in enumerate(get_yield(output_video)):
             print(f'\n{frame_idx}번째 프레임 랜드마크 찾기')
-                
+            
             # print()
             # print(f'#### type(frame): {type(frame)}')
             # print(f'#### len(frame): {len(frame)}')
             # print(f'#### frame.shape: {frame.shape}')
+            # print(f'#### frame_idx: {frame_idx}, person_id: {person_id}')
             # print()
                 
-            facial_landmarks = {'facial_landmarks': get_face_landmark(frame_idx, frame)}
-            person_landmarks = {person_id: facial_landmarks}
-            multi_sub_landmarks.append(person_landmarks)
+            facial_landmarks = {'facial_landmarks': get_face_landmark(frame_idx, frame)}  # dlib 사용해서 face landmark 찾기
+            person_landmarks.append(facial_landmarks)  # person_id
+            multi_sub_landmarks.append(person_landmarks)  # frame_idx
             
             print()
             print('저장')
             print()
         
-        multi_sub_landmarks = np.array(multi_sub_landmarks)
-        save2npz(landmarks_pathname, data=multi_sub_landmarks)
+        multi_sub_landmarks = np.array(multi_sub_landmarks)  # list to numpy
+        
+        # print()
+        # print()
+        # print(f'\n######### len(multi_sub_landmarks): {len(multi_sub_landmarks)}')  # list to numpy
+        # print(f'\n######### frame_idx - {frame_idx}: {multi_sub_landmarks[frame_idx]}')  # list to numpy
+        # print(f'\n######### person_id - {person_id}: {multi_sub_landmarks[frame_idx][int(person_id)]}')  # list to numpy
+        # print(f'\n######### facial_landmarks: {multi_sub_landmarks[frame_idx][int(person_id)]["facial_landmarks"]}')  # list to numpy
+        # print()
+        # print()
+        
+        # save2npz(dst_pathname, data=multi_sub_landmarks)  # face landmark npz 저장
+        save2npz(landmarks_pathname, data=multi_sub_landmarks)  # face landmark npz 저장
         
         print()
         print('npz 저장')
         print()
+    
+    # video 에 대한 face landmark npz 파일이 있는 경우
+    else:
         
-        
-    # 파일이 있는지 확인, 없으면 AssertionError 메시지를 띄움
-    assert os.path.isfile(landmarks_pathname), "File does not exist. Path input: {}".format(landmarks_pathname)  # 원하는 조건의 변수값을 보증하기 위해 사용
+        # 파일이 있는지 확인, 없으면 AssertionError 메시지를 띄움
+        assert os.path.isfile(landmarks_pathname), "File does not exist. Path input: {}".format(landmarks_pathname)  # 원하는 조건의 변수값을 보증하기 위해 사용
 
-    # 파일이 존재할 경우
-    if os.path.exists(dst_pathname):
-        continue  # 코드 실행 건너뛰기
-
-    multi_sub_landmarks = np.load( landmarks_pathname, allow_pickle=True)['data']  # numpy 파일 열기
-    landmarks = [None] * len( multi_sub_landmarks)  # 랜드마크 변수 초기화
-    for frame_idx in range(len(landmarks)):
-        try:
-            landmarks[frame_idx] = multi_sub_landmarks[frame_idx][int(person_id)]['facial_landmarks']  # 프레임 인덱스 번호에서 사람id의 얼굴 랜드마크 정보 가져오기
-        except IndexError:  # 해당 인덱스 번호에 깂이 없으면 IndexError 발생
+        # 파일이 존재할 경우
+        if os.path.exists(dst_pathname):
             continue  # 코드 실행 건너뛰기
 
-    # -- pre-process landmarks: interpolate frames not being detected.
-    preprocessed_landmarks = landmarks_interpolate(landmarks)  # 랜드마크 보간
-    # 변수가 비어있지 않다면
-    if not preprocessed_landmarks:
-        continue  # 코드 실행 건너뛰기
+        multi_sub_landmarks = np.load( landmarks_pathname, allow_pickle=True)['data']  # numpy 파일 열기
+        landmarks = [None] * len( multi_sub_landmarks)  # 랜드마크 변수 초기화
+        for frame_idx in range(len(landmarks)):
+            try:
+                landmarks[frame_idx] = multi_sub_landmarks[frame_idx][int(person_id)]['facial_landmarks']  # 프레임 인덱스 번호에서 사람id의 얼굴 랜드마크 정보 가져오기
+            except IndexError:  # 해당 인덱스 번호에 깂이 없으면 IndexError 발생
+                continue  # 코드 실행 건너뛰기
 
-    # -- crop
-    sequence = crop_patch(video_pathname, preprocessed_landmarks)  # 영상에서 랜드마크 받아서 입술 잘라내기
-    # sequence가 비어있는지 확인, 비어있으면 AssertionError 메시지를 띄움
-    assert sequence is not None, "cannot crop from {}.".format(filename)  # 원하는 조건의 변수값을 보증하기 위해 사용
+        # -- pre-process landmarks: interpolate frames not being detected.
+        preprocessed_landmarks = landmarks_interpolate(landmarks)  # 랜드마크 보간
+        # 변수가 비어있지 않다면
+        if not preprocessed_landmarks:
+            continue  # 코드 실행 건너뛰기
 
-    # -- save
-    data = convert_bgr2gray(sequence) if args.convert_gray else sequence[...,::-1]  # gray 변환
-    save2npz(dst_pathname, data=data)  # 데이터를 npz 형식으로 저장
+        # -- crop
+        sequence = crop_patch(video_pathname, preprocessed_landmarks)  # 영상에서 랜드마크 받아서 입술 잘라내기
+        # sequence가 비어있는지 확인, 비어있으면 AssertionError 메시지를 띄움
+        assert sequence is not None, "cannot crop from {}.".format(filename)  # 원하는 조건의 변수값을 보증하기 위해 사용
+
+        # -- save
+        data = convert_bgr2gray(sequence) if args.convert_gray else sequence[...,::-1]  # gray 변환
+        save2npz(dst_pathname, data=data)  # 데이터를 npz 형식으로 저장
 
 print('Done.')

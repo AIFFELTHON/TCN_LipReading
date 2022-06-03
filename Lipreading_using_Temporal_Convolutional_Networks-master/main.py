@@ -54,11 +54,11 @@ def load_args(default_config=None):
     parser.add_argument('--tcn-width-mult', type=int, default=1, help='TCN width multiplier')
     # -- train
     parser.add_argument('--training-mode', default='tcn', help='tcn')
-    parser.add_argument('--batch-size', type=int, default=32, help='Mini-batch size')
+    parser.add_argument('--batch-size', type=int, default=8, help='Mini-batch size')  # dafault=32 에서 default=8 (OOM 방지) 로 변경
     parser.add_argument('--optimizer',type=str, default='adamw', choices = ['adam','sgd','adamw'])
     parser.add_argument('--lr', default=3e-4, type=float, help='initial learning rate')
     parser.add_argument('--init-epoch', default=0, type=int, help='epoch to start at')
-    parser.add_argument('--epochs', default=80, type=int, help='number of epochs')
+    parser.add_argument('--epochs', default=10, type=int, help='number of epochs')  # dafault=80 에서 default=10 (테스트 용도) 로 변경
     parser.add_argument('--test', default=False, action='store_true', help='training mode')
     # -- mixup
     parser.add_argument('--alpha', default=0.4, type=float, help='interpolation strength (uniform=1., ERM=0.)')
@@ -74,7 +74,7 @@ def load_args(default_config=None):
     parser.add_argument('--config-path', type=str, default=None, help='Model configuration with json format')
     # -- other vars
     parser.add_argument('--interval', default=50, type=int, help='display interval')
-    parser.add_argument('--workers', default=8, type=int, help='number of data loading workers')
+    parser.add_argument('--workers', default=2, type=int, help='number of data loading workers')  # dafault=8 에서 default=2 (GCP core 4개의 절반) 로 변경
     # paths
     parser.add_argument('--logging-dir', type=str, default='./train_logs', help = 'path to the directory in which to save the log file')
 
@@ -130,6 +130,12 @@ def evaluate(model, dset_loader, criterion):
             # 모델 생성
             # input 텐서의 차원을 하나 더 늘리고 gpu 에 할당
             logits = model(input.unsqueeze(1).cuda(), lengths=lengths)
+            print()
+            print()
+            print(f'logits: {logits}')
+            print(f'type(logits): {type(logits)}')
+            print()
+            print()
             _, preds = torch.max(F.softmax(logits, dim=1).data, dim=1)  # softmax 적용 후 각 원소 중 최대값 가져오기
             running_corrects += preds.eq(labels.cuda().view_as(preds)).sum().item()  # 정확도 계산
 
