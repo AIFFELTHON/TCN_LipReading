@@ -17,7 +17,7 @@ ipython_config.py
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks
 
-sample
-hangul
+# sample
+# hangul
 Lipreading_using_Temporal_Convolutional_Networks-master/landmarks
 Lipreading_using_Temporal_Convolutional_Networks/datasets
