@@ -27,6 +27,8 @@ from lipreading.mixup import mixup_data, mixup_criterion
 from lipreading.optim_utils import get_optimizer, CosineScheduler
 from lipreading.dataloaders import get_data_loaders, get_preprocessing_pipelines
 
+from pathlib import Path
+
 
 # 인자값을 받아서 처리하는 함수
 def load_args(default_config=None):
@@ -54,12 +56,13 @@ def load_args(default_config=None):
     parser.add_argument('--tcn-width-mult', type=int, default=1, help='TCN width multiplier')
     # -- train
     parser.add_argument('--training-mode', default='tcn', help='tcn')
-    parser.add_argument('--batch-size', type=int, default=1, help='Mini-batch size')  # dafault=32 에서 default=8 (OOM 방지) 로 변경
+    parser.add_argument('--batch-size', type=int, default=4, help='Mini-batch size')  # dafault=32 에서 default=8 (OOM 방지) 로 변경
     parser.add_argument('--optimizer',type=str, default='adamw', choices = ['adam','sgd','adamw'])
     parser.add_argument('--lr', default=3e-4, type=float, help='initial learning rate')
     parser.add_argument('--init-epoch', default=0, type=int, help='epoch to start at')
-    parser.add_argument('--epochs', default=10, type=int, help='number of epochs')  # dafault=80 에서 default=10 (테스트 용도) 로 변경
+    parser.add_argument('--epochs', default=100, type=int, help='number of epochs')  # dafault=80 에서 default=10 (테스트 용도) 로 변경
     parser.add_argument('--test', default=False, action='store_true', help='training mode')
+    parser.add_argument('--save-dir', type=Path, default=Path('./result/'))
     # -- mixup
     parser.add_argument('--alpha', default=0.4, type=float, help='interpolation strength (uniform=1., ERM=0.)')
     # -- test
@@ -117,7 +120,7 @@ def extract_feats(model):
 
 
 # 평가
-def evaluate(model, dset_loader, criterion):
+def evaluate(model, dset_loader, criterion, is_print=False):
 
     model.eval()  # evaluation 과정에서 사용하지 않아야 하는 layer들을 알아서 off 시키도록 하는 함수
 
@@ -126,6 +129,14 @@ def evaluate(model, dset_loader, criterion):
 
     # evaluation/validation 과정에선 보통 model.eval()과 torch.no_grad()를 함께 사용함
     with torch.no_grad():
+        txt_save_path = str(args.save_dir) + f'/predict.txt'
+        # 파일 없을 경우                 
+        if not os.path.exists(os.path.dirname(txt_save_path)):                            
+            os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
+        
+        f = open(txt_save_path, 'w')
+
+        inferences = []
         for batch_idx, (input, lengths, labels) in enumerate(tqdm(dset_loader)):
             # 모델 생성
             # input 텐서의 차원을 하나 더 늘리고 gpu 에 할당
@@ -135,9 +146,36 @@ def evaluate(model, dset_loader, criterion):
 
             loss = criterion(logits, labels.cuda())  # loss 계산
             running_loss += loss.item() * input.size(0)  # loss.item(): loss 가 갖고 있는 scalar 값
+        
+            ############################################
 
-    print('{} in total\tCR: {}'.format( len(dset_loader.dataset), running_corrects/len(dset_loader.dataset)))  # 데이터개수, 정확도 출력
-    return running_corrects/len(dset_loader.dataset), running_loss/len(dset_loader.dataset)  # 정확도, loss 반환
+            probs = torch.nn.functional.softmax(logits, dim=-1)
+            probs = probs[0].detach().cpu().numpy()
+
+            label_path = args.label_path
+            with Path(label_path).open() as fp:
+                vocab = fp.readlines()
+
+            top = np.argmax(probs)
+            prediction = vocab[top].strip()
+            confidence = np.round(probs[top], 3)
+            inferences.append({
+                'prediction': prediction,
+                'confidence': confidence
+            })
+
+            f.writelines(f'Prediction: {prediction}, Confidence: {confidence}\n')
+
+            if is_print:
+                print()
+                print(f'Prediction: {prediction}')
+                print(f'Confidence: {confidence}')
+                print()
+
+
+    f.close()
+    print('Test Dataset {} In Total \t CR: {}'.format( len(dset_loader.dataset), running_corrects/len(dset_loader.dataset)))  # 데이터개수, 정확도 출력
+    return running_corrects/len(dset_loader.dataset), running_loss/len(dset_loader.dataset), inferences  # 정확도, loss, inferences 반환
 
 
 # 모델 학습
@@ -276,8 +314,11 @@ def main():
             return
         # if test-time, performance on test partition and exit. Otherwise, performance on validation and continue (sanity check for reload)
         if args.test:
-            acc_avg_test, loss_avg_test = evaluate(model, dset_loaders['test'], criterion)  # 모델 평가
-            logger.info('Test-time performance on partition {}: Loss: {:.4f}\tAcc:{:.4f}'.format( 'test', loss_avg_test, acc_avg_test))  # 로거 INFO 작성
+            acc_avg_test, loss_avg_test, inferences = evaluate(model, dset_loaders['test'], criterion, is_print=True)  # 모델 평가
+
+            logging_sentence = 'Test-time performance on partition {}: Loss: {:.4f}\tAcc:{:.4f}'.format( 'test', loss_avg_test, acc_avg_test)
+            logger.info(logging_sentence)  # 로거 INFO 작성
+
             return
 
     # -- fix learning rate after loading the ckeckpoint (latency)
@@ -306,11 +347,10 @@ def main():
     _ = load_model(best_fp, model)  # 모델 불러오기
     acc_avg_test, loss_avg_test = evaluate(model, dset_loaders['test'], criterion)  # 모델 평가
     logger.info('Test time performance of best epoch: {} (loss: {})'.format(acc_avg_test, loss_avg_test))  # 로거 INFO 작성
-    torch.cuda.empty_cache() # GPU 캐시 데이터 삭제
+    torch.cuda.empty_cache()  # GPU 캐시 데이터 삭제
 
 
 # 해당 모듈이 임포트된 경우가 아니라 인터프리터에서 직접 실행된 경우에만, if문 이하의 코드를 돌리라는 명령
 # => main.py 실행할 경우 제일 먼저 호출되는 부분
 if __name__ == '__main__':  # 현재 스크립트 파일이 실행되는 상태 파악
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     main()  # main() 함수 호출

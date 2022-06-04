@@ -234,6 +234,13 @@ def main():
 
             for x, y in landmarks:
                 cv2.circle(image_np, (int(x), int(y)), 2, (0, 0, 255))
+        
+        # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+        camera_save_path = str(args.save_dir) + f'/camera/camera_{frame_idx}.jpg'
+        # 파일 없을 경우                 
+        if not os.path.exists(os.path.dirname(camera_save_path)):                            
+            os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
+        cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
                         
         frame_idx += 1
     else:

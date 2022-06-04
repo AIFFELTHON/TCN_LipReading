@@ -1,0 +1,2 @@
+Prediction: 오늘, Confidence: 1.0
+Prediction: 오늘, Confidence: 1.0
