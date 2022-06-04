@@ -130,12 +130,6 @@ def evaluate(model, dset_loader, criterion):
             # 모델 생성
             # input 텐서의 차원을 하나 더 늘리고 gpu 에 할당
             logits = model(input.unsqueeze(1).cuda(), lengths=lengths)
-            print()
-            print()
-            print(f'logits: {logits}')
-            print(f'type(logits): {type(logits)}')
-            print()
-            print()
             _, preds = torch.max(F.softmax(logits, dim=1).data, dim=1)  # softmax 적용 후 각 원소 중 최대값 가져오기
             running_corrects += preds.eq(labels.cuda().view_as(preds)).sum().item()  # 정확도 계산
 

@@ -1,1 +1,1 @@
-Prediction: AFRICA, Confidence: 0.12300000339746475
+Prediction: AFTERNOON, Confidence: 0.11999999731779099

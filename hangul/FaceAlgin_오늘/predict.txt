@@ -1,1 +1,1 @@
-Prediction: 뉴스에서, Confidence: 0.5490000247955322
+Prediction: 코로나, Confidence: 0.9330000281333923
