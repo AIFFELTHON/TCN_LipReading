@@ -22,13 +22,6 @@ class Compose(object):
         self.preprocess = preprocess
 
     def __call__(self, sample):
-        # print()
-        # print(f'------------- type(sample): {type(sample)}')
-        # print(f'------------- len(sample): {len(sample)}')
-        # print(f'------------- sample.shape: {sample.shape}')
-        # print(f'------------- self.preprocess: {self.preprocess}')
-        # print(f'------------- t(sample): {self.preprocess(sample)}')
-        # print()
         for t in self.preprocess:
             sample = t(sample)
         return sample   # preprocess에 담긴 각 augmentation 전처리가 sample에 담겨 반환된다.
@@ -77,11 +70,6 @@ class Normalize(object):
         Returns:
             Tensor: Normalized Tensor image.
         """
-        print()
-        print(f'!!!!!! frames: {type(frames)}')
-        print(f'!!!!!! self.mean: {type(self.mean)}')
-        print(f'!!!!!! self.std: {type(self.std)}')
-        print()
         frames = (frames - self.mean) / self.std   # 편차를 표준 편차로 나눈 값 : z-score normalization
         return frames
 

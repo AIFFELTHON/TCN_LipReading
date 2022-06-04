@@ -85,18 +85,7 @@ def crop_patch( video_pathname, landmarks):
         q_landmarks.append(landmarks[frame_idx])  # 프레임 인덱스 번호에 맞는 랜드마크 정보 추가
         q_frame.append(frame)  # 프레임 정보 추가
         if len(q_frame) == args.window_margin:
-            print()
-            print()
-            # print(f'### q_landmarks: {q_landmarks}')
-            print(f'### type: {type(q_landmarks)}')
-            print(f'### len: {len(q_landmarks)}')
             smoothed_landmarks = np.mean(q_landmarks, axis=0)  # 각 그룹의 같은 원소끼리 평균
-            # print(f'### smoothed_landmarks: {smoothed_landmarks}')
-            print(f'### type: {type(smoothed_landmarks)}')
-            print(f'### len: {len(smoothed_landmarks)}')
-            print(f'### shape: {smoothed_landmarks.shape}')
-            print()
-            print()
             cur_landmarks = q_landmarks.popleft()  # 데크 제일 왼쪽 값 꺼내기
             cur_frame = q_frame.popleft()  # 데크 제일 왼쪽 값 꺼내기
             # -- affine transformation  # 아핀 변환
@@ -160,10 +149,6 @@ def landmarks_interpolate(landmarks):
     return landmarks  # 랜드마크 반환
 
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-
 lines = open(args.filename_path).read().splitlines()  # 문자열을 '\n' 기준으로 쪼갠 후 list 생성
 lines = list(filter(lambda x: 'test' == x.split('/')[-2], lines)) if args.testset_only else lines  # args.testset_only 값이 있다면 test 폴더 속 파일명만 불러와서 list 생성, 아니라면 원래 lines 그대로 값 유지
 
@@ -206,81 +191,27 @@ for filename_idx, line in enumerate(lines):
                 
                 # crop_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 입술 crop
 
-                CROP_START_X = landmark[0][0]
-                CROP_START_Y = landmark[29][1]
-                CROP_END_X = landmark[19][0]
-                CROP_END_Y = landmark[8][1]
-                # face_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 얼굴 crop
-                # face_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 얼굴 crop
-                face_img = np.array(landmark)  # 얼굴 crop
-                print(face_img.shape)
+                face_img = np.array(landmark)  # face landmark
+                eye_img = np.array(landmark[36:48])  # eye landmark
 
-                # eye_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 눈 crop
-                eye_img = np.array(landmark[36:48])  # 눈 crop
-                print(eye_img.shape)
-
-                # face_img = to_tensor(face_img)
-                # eye_img = to_tensor(eye_img)
-
-                return face_img, eye_img
-
-
-                
-                # SAVE_IMG_SIZE = (96,96)
-                # WORD = video_pathname.split('/')[-1].split('_')[0]
-                # WORD_NUM = video_pathname.split('/')[-1][:-4]
-                # SAVE_IMG_PATH = os.path.dirname(os.path.abspath(__file__)) + f'/{WORD}/{WORD_NUM}/{WORD_NUM}_{frame_idx}.png'
-                # # if not os.path.exists(os.path.dirname(SAVE_IMG_PATH)):                            
-                # #     os.makedirs(os.path.dirname(SAVE_IMG_PATH))  # 디렉토리 생성
-                
-                # save_img = Image.fromarray(crop_img)  # numpy to image
-                # save_img = save_img.resize(SAVE_IMG_SIZE)  # 입술 이미지 크기 (96,96)
-                # # save_img.save(SAVE_IMG_PATH)  # 입술 이미지 저장
-                
-                # crop_img = np.asarray(save_img)  # image to numpy
-                # crop_img = to_tensor(crop_img)
-                
-                # return crop_img           
+                return face_img, eye_img    
         
         
         target_frames = 29  # 원하는 프레임 개수
         # video = videoToArray(video_pathname, is_gray=args.convert_gray)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
         video = videoToArray(video_pathname, is_gray=True)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
         output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)
-
-        from torchvision import transforms as transforms
-        from torchvision.transforms import ToTensor, ToPILImage
-        from PIL import Image
-
-
-        img_transform = transforms.Compose(
-            [
-                transforms.Grayscale(num_output_channels=1),  # gray
-                transforms.ToTensor(),  # image to tensor
-                transforms.Normalize((0.5,),(0.5,)),  # gray image 를 color image 로 load 하기 위함 # 참고: https://github.com/pytorch/vision/issues/288
-                # transforms.Lambda(lambda x: x.to('cuda'))
-            ]
-        )
         
-        def get_yield(output_video, img_transform):
+        def get_yield(output_video):
             for frame in output_video:
-                # frame = Image.fromarray(np.uint8(frame))  # numpy to image
-                # frame_torch = img_transform(frame)
-                # frame = frame_torch.numpy()
                 yield frame
         
         multi_sub_landmarks = []
         person_landmarks = []
         frame_landmarks = []
-        for frame_idx, frame in enumerate(get_yield(output_video, img_transform)):
+        for frame_idx, frame in enumerate(get_yield(output_video)):
             print(f'\n{frame_idx}번째 프레임 랜드마크 찾기')
             
-            # print()
-            # print(f'#### type(frame): {type(frame)}')
-            # print(f'#### len(frame): {len(frame)}')
-            # print(f'#### frame.shape: {frame.shape}')
-            # print(f'#### frame_idx: {frame_idx}, person_id: {person_id}')
-            # print()
             facial_landmaarks, eye_landmarks = get_face_landmark(frame)  # dlib 사용해서 face landmark 찾기            
             person_landmarks = {
                 'id': 0,
@@ -292,50 +223,14 @@ for filename_idx, line in enumerate(lines):
                 'fitting_scores_updated': True,
                 'pitch': -0.05
             }
-            frame_landmarks.append(person_landmarks)  # person_id
+            frame_landmarks.append(person_landmarks)
             multi_sub_landmarks.append(np.array(frame_landmarks.copy(), dtype=object))
-
-            print()
-            # print(f'111 landmarks: {landmarks}')
-            # print(f'111 keys: {landmarks.keys()}')
-            # print(f'111 values: {landmarks.values()}')
-            # print(f'111 type: {type(landmarks)}')
-            # print(f'111 len: {len(landmarks)}')
-            # print(f'111 shape: {landmarks.shape}')
-            print()
-            # print(f'222 person_landmarks: {person_landmarks}')
-            # print(f'222 type: {type(person_landmarks)}')
-            # print(f'222 len: {len(person_landmarks)}')
-            # print(f'222 shape: {person_landmarks.shape}')
-            print()
-            # print(f'333 multi_sub_landmarks: {multi_sub_landmarks}')
-            print(f'333 type: {type(multi_sub_landmarks)}')
-            print(f'333 len: {len(multi_sub_landmarks)}')
-            # print(f'333 shape: {multi_sub_landmarks.shape}')
-            print()
             
             print()
             print('저장')
             print()
 
-        
-        # multi_sub_landmarks.append(person_landmarks)  # frame_idx
-        # print()
-        # print(f'444 person_landmarks: {person_landmarks}')
-        # print()
-        # multi_sub_landmarks = {frame_idx: person_landmarks}  # frame_idx
         multi_sub_landmarks = np.array(multi_sub_landmarks)  # list to numpy
-        
-        # print()
-        # print()
-        # print(f'\n######### len(multi_sub_landmarks): {len(multi_sub_landmarks)}')  # list to numpy
-        # print(f'\n######### frame_idx - {frame_idx}: {multi_sub_landmarks[frame_idx]}')  # list to numpy
-        # print(f'\n######### person_id - {person_id}: {multi_sub_landmarks[frame_idx][int(person_id)]}')  # list to numpy
-        # print(f'\n######### facial_landmarks: {multi_sub_landmarks[frame_idx][int(person_id)]["facial_landmarks"]}')  # list to numpy
-        # print()
-        # print()
-        
-        # save2npz(dst_pathname, data=multi_sub_landmarks)  # face landmark npz 저장
         save2npz(landmarks_pathname, data=multi_sub_landmarks)  # face landmark npz 저장
         
         print()
@@ -357,29 +252,6 @@ for filename_idx, line in enumerate(lines):
         for frame_idx in range(len(landmarks)):
             try:
                 landmarks[frame_idx] = multi_sub_landmarks[frame_idx][int(person_id)]['facial_landmarks']  # 프레임 인덱스 번호에서 사람id의 얼굴 랜드마크 정보 가져오기
-                print()
-                print()
-                # print(f'landmarks[frame_idx]: {landmarks[frame_idx]}')
-                print(f'len: {len(landmarks[frame_idx])}')
-                print()
-                # print(f'111 multi_sub_landmarks: {multi_sub_landmarks}')
-                print(f'111 type: {type(multi_sub_landmarks)}')
-                print(f'111 len: {len(multi_sub_landmarks)}')
-                print(f'111 shape: {multi_sub_landmarks.shape}')
-                print()
-                # print(f'222 frame_idx: {multi_sub_landmarks[frame_idx]}')
-                print(f'222 type: {type(multi_sub_landmarks[frame_idx])}')
-                print(f'222 len: {len(multi_sub_landmarks[frame_idx])}')
-                print(f'222 shape: {multi_sub_landmarks[frame_idx].shape}')
-                print()
-                # print(f'333 person_id: {multi_sub_landmarks[frame_idx][int(person_id)]}')
-                print(f'333 type: {type(multi_sub_landmarks[frame_idx][int(person_id)])}')
-                print(f'333 len: {len(multi_sub_landmarks[frame_idx][int(person_id)])}')
-                # print(f'333 keys: {multi_sub_landmarks[frame_idx][int(person_id)].keys()}')
-                # print(f'333 values: {multi_sub_landmarks[frame_idx][int(person_id)].values()}')
-                print()
-                print()
-                # print(q)
             except IndexError:  # 해당 인덱스 번호에 깂이 없으면 IndexError 발생
                 continue  # 코드 실행 건너뛰기
 

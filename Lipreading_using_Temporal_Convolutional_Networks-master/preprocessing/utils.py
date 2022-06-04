@@ -111,7 +111,7 @@ def videoToArray(video_pathname, is_gray=True) :
             break
         else :
             frame = Image.fromarray(frame)  # numpy to image
-            frame = frame.resize(FRAME_SIZE)  # 입술 이미지 크기 (96,96)
+            frame = frame.resize(FRAME_SIZE)  # 영상 프레임 크기 (256,256)
             frame = np.asarray(frame)  # image to numpy
 
             # gray scale 적용

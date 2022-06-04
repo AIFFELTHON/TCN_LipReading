@@ -164,18 +164,6 @@ def train(model, dset_loader, criterion, epoch, optimizer, logger):
     running_all = 0.
 
     end = time.time()  # 현재 시각
-    # print()
-    # print(f'dset_loader is None? {0 if dset_loader is None else 1}')
-    # print(f'type(dset_loader): {type(dset_loader)}')
-    # print(f'len(dset_loader): {len(dset_loader)}')
-    # print()
-    # print(f'-------- dset_loader 순회 출력 --------')
-    # for data in dset_loader:
-    #     # print("Data: ", data)
-    #     # print("Waveform: {}\nSample rate: {}\nLabels: {}".format(data[0], data[1], data[2]))
-    #     print("Sample rate: {}\nLabels: {}".format(data[1], data[2]))
-    #     break
-    # print()
     for batch_idx, (input, lengths, labels) in enumerate(dset_loader):
         # measure data loading time
         data_time.update(time.time() - end)  # 평균, 현재값 업데이트
