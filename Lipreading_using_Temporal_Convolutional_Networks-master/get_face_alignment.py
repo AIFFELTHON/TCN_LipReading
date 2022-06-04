@@ -103,19 +103,26 @@ def visualize_probs(vocab, probs, col_width=4, col_height=300):
     return out, prediction, confidence
 
 
-def main():
-    import os
-    os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
+# 인자값을 받아서 처리하는 함수
+def load_args(default_config=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-path', type=Path, default=Path('configs/lrw_resnet18_mstcn.json'))
     parser.add_argument('--model-path', type=Path, default=Path('models/lrw_resnet18_mstcn_adamw_s3.pth.tar'))
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--queue-length', type=int, default=29)
     parser.add_argument('--video-data', type=None, default='sample/AFTERNOON.mp4')
-    parser.add_argument('--label-path', type=None, default='labels/500WordsSortedList_backup.txt')
+    parser.add_argument('--label-path', type=Path, default=Path('labels/500WordsSortedList_backup.txt'))
+    parser.add_argument('--save-dir', type=Path, default=Path('result/'))
     args = parser.parse_args()
+    return args
+
+
+def main():
+    
+    os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+    args = load_args()  # args 파싱 및 로드
 
     mean_face_landmarks = np.load(Path('preprocessing/20words_mean_face.npy'))
 
@@ -126,42 +133,35 @@ def main():
     
     fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, device=args.device)
     
-    # model = load_model(args.config_path)
-    model = load_model(args.config_path, num_classes=len(vocab))
-    # model.load_state_dict(torch.load(Path(args.model_path), map_location=args.device)['model_state_dict'])
-    model = model.to(args.device)
-
-    queue = deque(maxlen=args.queue_length)
-    
     video_pathname = args.video_data
-    video = videoToArray(video_pathname, is_gray=False)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
-    target_frames= args.queue_length
-    output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)
+    video_info = get_video_info(video_pathname, is_print=False)
+    output_video = 0
+    target_frames= args.queue_length-1
+    if target_frames != video_info['length']:
+        # model = load_model(args.config_path)
+        model = load_model(args.config_path, num_classes=len(vocab))
+        # model.load_state_dict(torch.load(Path(args.model_path), map_location=args.device)['model_state_dict'])
+        model = model.to(args.device)
 
-    def get_yield(output_video):
-        for frame in output_video:
-            yield frame
+        queue = deque(maxlen=args.queue_length)
 
-    # cap = cv2.VideoCapture(video_pathname)
-    # if not cap.isOpened():
-    #     print("could not open : ", video_pathname)
-    #     cap.release()
-    #     exit(0)
+        video = videoToArray(video_pathname, is_gray=False)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
+        output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)
 
-    print(f'\n ------------ START ------------ \n')
-    frame_idx = 0
-    landmark_idx = 0
-    probs_idx = 0
-    # while True:
-    for frame_idx, frame in enumerate(get_yield(output_video)):
-        # ret, image_np = cap.read()
-        # if not ret:
-        #     break
-        image_np = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        def get_yield(output_video):
+            for frame in output_video:
+                yield frame
+        
+        print(f'\n ------------ START ------------ \n')
+        frame_idx = 0
+        landmark_idx = 0
+        probs_idx = 0
+        for frame_idx, frame in enumerate(get_yield(output_video)):
+            image_np = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        all_landmarks = fa.get_landmarks(image_np)
-        if all_landmarks:
-            landmarks = all_landmarks[0]
+            all_landmarks = fa.get_landmarks(image_np)
+            if all_landmarks:
+                landmarks = all_landmarks[0]
 
             # BEGIN PROCESSING
 
@@ -172,8 +172,11 @@ def main():
                 trans_frame, trans_landmarks[START_IDX:STOP_IDX], CROP_HEIGHT // 2, CROP_WIDTH // 2)
             
             # cv2.imshow('patch', cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
-            PATCH_SAVE_PATH = f'/home/PHR/Lipreading_using_TCN_running/sample/FaceAlign_AFTERNOON/patch/patch_{landmark_idx}.jpg'
-            cv2.imwrite(PATCH_SAVE_PATH, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+            patch_save_path = str(args.save_dir) + f'/patch/patch_{landmark_idx}.jpg'
+            # 파일 없을 경우                 
+            if not os.path.exists(os.path.dirname(patch_save_path)):                            
+                os.makedirs(os.path.dirname(patch_save_path))  # 디렉토리 생성
+            cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
             landmark_idx += 1
 
             patch = Image.fromarray(np.uint8(patch))  # numpy to image
@@ -189,7 +192,10 @@ def main():
             queue.append(patch_torch)
             print(f'------------ FRAME {frame_idx} ------------') 
             
-            if len(queue) >= args.queue_length:
+            if len(queue)+1 >= args.queue_length:
+                Prediction = ''
+                confidence = 0
+                # while True:
                 print(f'\n ------------ PREDICT ------------ \n')
                 with torch.no_grad():
                     model_input = torch.stack(list(queue), dim=1).unsqueeze(0)
@@ -199,36 +205,154 @@ def main():
 
                 # vis, prediction, confidence = visualize_probs(vocab, probs)
                 # cv2.imshow('probs', vis)
-                # PROBS_SAVE_PATH = f'/home/PHR/Lipreading_using_TCN_running/sample/FaceAlign_AFTERNOON/probs/probs_{probs_idx}.jpg'
-                # cv2.imwrite(PROBS_SAVE_PATH, vis)
+                # probs_save_path = str(args.save_dir) + f'/probs/probs_{probs_idx}.jpg'
+                # 파일 없을 경우                 
+                # if not os.path.exists(os.path.dirname(probs_save_path)):                            
+                #     os.makedirs(os.path.dirname(probs_save_path))  # 디렉토리 생성
+                # cv2.imwrite(probs_save_path, vis)
                 # probs_idx += 1
 
                 top = np.argmax(probs)
-                prediction = vocab[top]
+                prediction = vocab[top].strip()
                 confidence = np.round(probs[top], 3)
                 print(f'Prediction: {prediction}')
                 print(f'Confidence: {confidence}')
-                
 
+                # if confidence < 0.15:
+                #     continue
+
+                txt_save_path = str(args.save_dir) + f'/predict.txt'
+                # 파일 없을 경우                 
+                if not os.path.exists(os.path.dirname(txt_save_path)):                            
+                    os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
+                with open(txt_save_path, 'w') as f:
+                    f.write(f'Prediction: {prediction}, Confidence: {confidence}')
+                # break
+                    
+                
             # END PROCESSING
 
             for x, y in landmarks:
                 cv2.circle(image_np, (int(x), int(y)), 2, (0, 0, 255))
-
-        # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
-        CAMERA_SAVE_PATH = f'/home/PHR/Lipreading_using_TCN_running/sample/FaceAlign_AFTERNOON/camera/camera_{frame_idx}.jpg'
-        cv2.imwrite(CAMERA_SAVE_PATH, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
-
-        key = cv2.waitKey(1)
-        if key in {27, ord('q')}:  # 27 is Esc
-            break
-        elif key == ord(' '):
-            cv2.waitKey(0)
-        
+                        
         frame_idx += 1
+    else:
+        # model = load_model(args.config_path)
+        model = load_model(args.config_path, num_classes=len(vocab))
+        model.load_state_dict(torch.load(Path(args.model_path), map_location=args.device)['model_state_dict'])  # [500,768]
+        model = model.to(args.device)
+
+        queue = deque(maxlen=args.queue_length)
+
+        cap = cv2.VideoCapture(video_pathname)
+        if not cap.isOpened():
+            print("could not open : ", video_pathname)
+            cap.release()
+            exit(0)
+
+        print(f'\n ------------ START ------------ \n')
+        frame_idx = 0
+        landmark_idx = 0
+        probs_idx = 0
+        while True:
+            ret, image_np = cap.read()
+            if not ret:
+                break
+            image_np = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+
+            all_landmarks = fa.get_landmarks(image_np)
+            if all_landmarks:
+                landmarks = all_landmarks[0]
+
+                # BEGIN PROCESSING
+
+                trans_frame, trans = warp_img(
+                    landmarks[STABLE_PNTS_IDS, :], mean_face_landmarks[STABLE_PNTS_IDS, :], image_np, STD_SIZE)
+                trans_landmarks = trans(landmarks)
+                patch = cut_patch(
+                    trans_frame, trans_landmarks[START_IDX:STOP_IDX], CROP_HEIGHT // 2, CROP_WIDTH // 2)
+                
+                # cv2.imshow('patch', cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+                patch_save_path = str(args.save_dir) + f'/patch/patch_{landmark_idx}.jpg'
+                # 파일 없을 경우                 
+                if not os.path.exists(os.path.dirname(patch_save_path)):                            
+                    os.makedirs(os.path.dirname(patch_save_path))  # 디렉토리 생성
+                cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+                landmark_idx += 1
+
+                patch = Image.fromarray(np.uint8(patch))  # numpy to image
+                img_transform = transforms.Compose(
+                    [
+                        transforms.Grayscale(num_output_channels=1),  # gray
+                        transforms.ToTensor(),  # image to tensor
+                        transforms.Normalize((0.5,),(0.5,)),  # gray image 를 color image 로 load 하기 위함 # 참고: https://github.com/pytorch/vision/issues/288
+                        transforms.Lambda(lambda x: x.to(args.device))
+                    ]
+                )
+                patch_torch = img_transform(patch)
+                queue.append(patch_torch)
+                print(f'------------ FRAME {frame_idx} ------------') 
+                
+                if len(queue)+1 >= args.queue_length:
+                    Prediction = ''
+                    confidence = 0
+                    # while True:
+                    print(f'\n ------------ PREDICT ------------ \n')
+                    with torch.no_grad():
+                        model_input = torch.stack(list(queue), dim=1).unsqueeze(0)
+                        logits = model(model_input, lengths=[args.queue_length])
+                        probs = torch.nn.functional.softmax(logits, dim=-1)
+                        probs = probs[0].detach().cpu().numpy()
+
+                    # vis, prediction, confidence = visualize_probs(vocab, probs)
+                    # cv2.imshow('probs', vis)
+                    # probs_save_path = str(args.save_dir) + f'/probs/probs_{probs_idx}.jpg'
+                    # 파일 없을 경우                 
+                    # if not os.path.exists(os.path.dirname(probs_save_path)):                            
+                    #     os.makedirs(os.path.dirname(probs_save_path))  # 디렉토리 생성
+                    # cv2.imwrite(probs_save_path, vis)
+                    # probs_idx += 1
+
+                    top = np.argmax(probs)
+                    prediction = vocab[top].strip()
+                    confidence = np.round(probs[top], 3)
+                    print(f'Prediction: {prediction}')
+                    print(f'Confidence: {confidence}')
+
+                    # if confidence < 0.15:
+                    #     continue
+
+                    txt_save_path = str(args.save_dir) + f'/predict.txt'
+                    # 파일 없을 경우                 
+                    if not os.path.exists(os.path.dirname(txt_save_path)):                            
+                        os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
+                    with open(txt_save_path, 'w') as f:
+                        f.write(f'Prediction: {prediction}, Confidence: {confidence}')
+                    # break
+                        
+                    
+                # END PROCESSING
+
+                for x, y in landmarks:
+                    cv2.circle(image_np, (int(x), int(y)), 2, (0, 0, 255))
+
+            # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+            camera_save_path = str(args.save_dir) + f'/camera/camera_{frame_idx}.jpg'
+            # 파일 없을 경우                 
+            if not os.path.exists(os.path.dirname(camera_save_path)):                            
+                os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
+            cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+
+            # key = cv2.waitKey(1)
+            # if key in {27, ord('q')}:  # 27 is Esc
+            #     break
+            # elif key == ord(' '):
+            #     cv2.waitKey(0)
+            
+            frame_idx += 1
     
-    # cap.release()
-    # cv2.destroyAllWindows()
+    torch.cuda.empty_cache() # GPU 캐시 데이터 삭제
+    cv2.destroyAllWindows()
     print(f'\n ------------ END ------------ \n')
 
 

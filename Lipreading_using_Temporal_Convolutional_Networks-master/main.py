@@ -312,6 +312,7 @@ def main():
     _ = load_model(best_fp, model)  # 모델 불러오기
     acc_avg_test, loss_avg_test = evaluate(model, dset_loaders['test'], criterion)  # 모델 평가
     logger.info('Test time performance of best epoch: {} (loss: {})'.format(acc_avg_test, loss_avg_test))  # 로거 INFO 작성
+    torch.cuda.empty_cache() # GPU 캐시 데이터 삭제
 
 
 # 해당 모듈이 임포트된 경우가 아니라 인터프리터에서 직접 실행된 경우에만, if문 이하의 코드를 돌리라는 명령
