@@ -2,6 +2,7 @@
 import os
 import cv2  # OpenCV 라이브러리
 import numpy as np
+from PIL import Image
 
 
 # -- IO utils
@@ -90,6 +91,10 @@ def videoToArray(video_pathname, is_gray=True) :
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # 영상 너비
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # 영상 높이
     fps = cap.get(cv2.CAP_PROP_FPS)  # 영상 FPS(Frames Per Second)
+
+    FRAME_SIZE = (256,256)
+    width = FRAME_SIZE[0]
+    height = FRAME_SIZE[1]
     
     if is_gray:
         video = np.zeros((n_frames, height, width))  # gray
@@ -105,7 +110,11 @@ def videoToArray(video_pathname, is_gray=True) :
         if not success :
             break
         else :
-             # gray scale 적용
+            frame = Image.fromarray(frame)  # numpy to image
+            frame = frame.resize(FRAME_SIZE)  # 입술 이미지 크기 (96,96)
+            frame = np.asarray(frame)  # image to numpy
+
+            # gray scale 적용
             if is_gray:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 

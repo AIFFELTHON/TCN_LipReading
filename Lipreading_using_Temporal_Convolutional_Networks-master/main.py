@@ -54,7 +54,7 @@ def load_args(default_config=None):
     parser.add_argument('--tcn-width-mult', type=int, default=1, help='TCN width multiplier')
     # -- train
     parser.add_argument('--training-mode', default='tcn', help='tcn')
-    parser.add_argument('--batch-size', type=int, default=8, help='Mini-batch size')  # dafault=32 에서 default=8 (OOM 방지) 로 변경
+    parser.add_argument('--batch-size', type=int, default=1, help='Mini-batch size')  # dafault=32 에서 default=8 (OOM 방지) 로 변경
     parser.add_argument('--optimizer',type=str, default='adamw', choices = ['adam','sgd','adamw'])
     parser.add_argument('--lr', default=3e-4, type=float, help='initial learning rate')
     parser.add_argument('--init-epoch', default=0, type=int, help='epoch to start at')

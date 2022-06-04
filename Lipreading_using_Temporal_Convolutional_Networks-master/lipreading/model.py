@@ -111,7 +111,7 @@ class Lipreading(nn.Module):
         if self.modality == 'video':
             B, C, T, H, W = x.size()
             x = self.frontend3D(x)
-            Tnew = x.shape[2]    # outpu should be B x C2 x Tnew x H x W
+            Tnew = x.shape[2]    # output should be B x C2 x Tnew x H x W
             x = threeD_to_2D_tensor( x )
             x = self.trunk(x)
             if self.backbone_type == 'shufflenet':

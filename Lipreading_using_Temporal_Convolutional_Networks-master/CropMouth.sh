@@ -1,5 +1,6 @@
 # python preprocessing/crop_mouth_from_video.py \
 # --video-direc ../sample/ \
+# --video-format .mp4 \
 # --landmark-direc ./landmarks/LRW_landmarks/ \
 # --filename-path ../sample/AFTERNOON_detected_face.csv \
 # --save-direc ./datasets/visual_data/ \
@@ -8,6 +9,7 @@
 
 python preprocessing/crop_mouth_from_video.py \
 --video-direc ../hangul/ \
+--video-format .avi \
 --landmark-direc ./landmarks/hangul_landmarks/ \
 --filename-path ../hangul/오늘_detected_face.csv \
 --save-direc ./datasets/visual_data/ \
