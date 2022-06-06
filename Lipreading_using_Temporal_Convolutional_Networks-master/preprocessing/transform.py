@@ -50,7 +50,7 @@ def cut_patch(img, landmarks, height, width, threshold=5):
     if center_x + width > img.shape[1] + threshold:                          
         raise Exception('too much bias in width')                            
 
-    # 배열 복사                                                                         
+    # 배열 복사
     cutted_img = np.copy(img[ int(round(center_y) - round(height)): int(round(center_y) + round(height)),
                          int(round(center_x) - round(width)): int(round(center_x) + round(width))])
     return cutted_img

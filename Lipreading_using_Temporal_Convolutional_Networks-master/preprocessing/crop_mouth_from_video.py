@@ -149,6 +149,11 @@ def landmarks_interpolate(landmarks):
     return landmarks  # 랜드마크 반환
 
 
+def get_yield(output_video):
+    for frame in output_video:
+        yield frame
+
+
 lines = open(args.filename_path).read().splitlines()  # 문자열을 '\n' 기준으로 쪼갠 후 list 생성
 lines = list(filter(lambda x: 'test' == x.split('/')[-2], lines)) if args.testset_only else lines  # args.testset_only 값이 있다면 test 폴더 속 파일명만 불러와서 list 생성, 아니라면 원래 lines 그대로 값 유지
 
@@ -176,47 +181,66 @@ for filename_idx, line in enumerate(lines):
             model_path = os.path.dirname(os.path.abspath(__file__)) + '/shape_predictor_68_face_landmarks.dat'
             landmark_predictor = dlib.shape_predictor(model_path)
             
+            # dlib 으로 face landmark 찾기
             list_landmarks = []
             for dlib_rect in dlib_rects:
                 points = landmark_predictor(img, dlib_rect)
                 list_points = list(map(lambda p: (p.x, p.y), points.parts()))
                 list_landmarks.append(list_points)
-            
-            for dlib_rect, landmark in zip(dlib_rects, list_landmarks):
-                
-                # CROP_START_X = landmark[5][0]
-                # CROP_START_Y = landmark[29][1]
-                # CROP_END_X = landmark[11][0]
-                # CROP_END_Y = landmark[8][1]
-                
-                # crop_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 입술 crop
 
-                face_img = np.array(landmark)  # face landmark
-                eye_img = np.array(landmark[36:48])  # eye landmark
+            input_width, input_height = img.shape
+            output_width, output_height = (256, 256)
+            width_rate = input_width / output_width
+            height_rate = input_height / output_height
+            img_rate = [(width_rate, height_rate)]*68
+            face_rate = np.array(img_rate)
+            eye_rate = np.array(img_rate[36:48])
 
-                return face_img, eye_img    
+            # face landmark list 가 비어있지 않은 경우
+            if list_landmarks:
+                for dlib_rect, landmark in zip(dlib_rects, list_landmarks):
+                    
+                    # CROP_START_X = landmark[5][0]
+                    # CROP_START_Y = landmark[29][1]
+                    # CROP_END_X = landmark[11][0]
+                    # CROP_END_Y = landmark[8][1]
+                    
+                    # crop_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 입술 crop
+
+                    face_landmark = np.array(landmark)  # face landmark
+                    eye_landmark = np.array(landmark[36:48])  # eye landmark
+
+                    return face_landmark, eye_landmark
+
+                    # face_landmark_resize = face_landmark / face_rate
+                    # eye_landmark_resize = eye_landmark / eye_rate
+
+                    # return face_landmark_resize, eye_landmark_resize
+            # face landmark list 가 비어있는 경우
+            else:
+                landmark = [(0.0, 0.0)] * 68
+                face_landmark = np.array(landmark)  # face landmark
+                eye_landmark = np.array(landmark[36:48])  # eye landmark
+                return face_landmark, eye_landmark
         
         
         target_frames = 29  # 원하는 프레임 개수
         # video = videoToArray(video_pathname, is_gray=args.convert_gray)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
         video = videoToArray(video_pathname, is_gray=True)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
-        output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)
-        
-        def get_yield(output_video):
-            for frame in output_video:
-                yield frame
-        
+        output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)        
+
         multi_sub_landmarks = []
         person_landmarks = []
         frame_landmarks = []
         for frame_idx, frame in enumerate(get_yield(output_video)):
-            print(f'\n{frame_idx}번째 프레임 랜드마크 찾기')
+            print(f'\n ------------ {frame_idx}번째 프레임 랜드마크 찾기 ------------ ')
             
-            facial_landmaarks, eye_landmarks = get_face_landmark(frame)  # dlib 사용해서 face landmark 찾기            
+            facial_landmarks, eye_landmarks = get_face_landmark(frame)  # dlib 사용해서 face landmark 찾기
+
             person_landmarks = {
                 'id': 0,
                 'most_recent_fitting_scores': np.array([2.0,2.0,2.0]),
-                'facial_landmarks': facial_landmaarks,
+                'facial_landmarks': facial_landmarks,
                 'roll': 7,
                 'yaw': 3.5,
                 'eye_landmarks': eye_landmarks,
@@ -225,16 +249,12 @@ for filename_idx, line in enumerate(lines):
             }
             frame_landmarks.append(person_landmarks)
             multi_sub_landmarks.append(np.array(frame_landmarks.copy(), dtype=object))
-            
-            print()
-            print('저장')
-            print()
 
         multi_sub_landmarks = np.array(multi_sub_landmarks)  # list to numpy
         save2npz(landmarks_pathname, data=multi_sub_landmarks)  # face landmark npz 저장
         
         print()
-        print('npz 저장')
+        print(' ------------ npz 저장 ------------ ')
         print()
     
     # video 에 대한 face landmark npz 파일이 있는 경우
@@ -251,23 +271,31 @@ for filename_idx, line in enumerate(lines):
         landmarks = [None] * len( multi_sub_landmarks)  # 랜드마크 변수 초기화
         for frame_idx in range(len(landmarks)):
             try:
-                landmarks[frame_idx] = multi_sub_landmarks[frame_idx][int(person_id)]['facial_landmarks']  # 프레임 인덱스 번호에서 사람id의 얼굴 랜드마크 정보 가져오기
+                landmarks[frame_idx] = multi_sub_landmarks[frame_idx][int(person_id)]['facial_landmarks'].astype(np.float64)  # 프레임 인덱스 번호에서 사람id의 얼굴 랜드마크 정보 가져오기
             except IndexError:  # 해당 인덱스 번호에 깂이 없으면 IndexError 발생
                 continue  # 코드 실행 건너뛰기
 
-        # -- pre-process landmarks: interpolate frames not being detected.
-        preprocessed_landmarks = landmarks_interpolate(landmarks)  # 랜드마크 보간
-        # 변수가 비어있지 않다면
-        if not preprocessed_landmarks:
-            continue  # 코드 실행 건너뛰기
+        # face landmark 가 [(0,0)]*68 이 아니면 랜드마크 보간 후 npz 파일 생성
+        landmarks_empty_list = []
+        landmarks_empty = [(0, 0)]*68
+        landmarks_empty = np.array(landmarks_empty, dtype=object)
+        for i in range(len(landmarks_empty)):
+            landmarks_empty_list.append(landmarks_empty.copy())
+        condition = landmarks != landmarks_empty_list
+        if condition:
+            # -- pre-process landmarks: interpolate frames not being detected.
+            preprocessed_landmarks = landmarks_interpolate(landmarks)  # 랜드마크 보간
+            # 변수가 비어있지 않다면
+            if not preprocessed_landmarks:
+                continue  # 코드 실행 건너뛰기
 
-        # -- crop
-        sequence = crop_patch(video_pathname, preprocessed_landmarks)  # 영상에서 랜드마크 받아서 입술 잘라내기
-        # sequence가 비어있는지 확인, 비어있으면 AssertionError 메시지를 띄움
-        assert sequence is not None, "cannot crop from {}.".format(filename)  # 원하는 조건의 변수값을 보증하기 위해 사용
+            # -- crop
+            sequence = crop_patch(video_pathname, preprocessed_landmarks)  # 영상에서 랜드마크 받아서 입술 잘라내기
+            # sequence가 비어있는지 확인, 비어있으면 AssertionError 메시지를 띄움
+            assert sequence is not None, "cannot crop from {}.".format(filename)  # 원하는 조건의 변수값을 보증하기 위해 사용
 
-        # -- save
-        data = convert_bgr2gray(sequence) if args.convert_gray else sequence[...,::-1]  # gray 변환
-        save2npz(dst_pathname, data=data)  # 데이터를 npz 형식으로 저장
+            # -- save
+            data = convert_bgr2gray(sequence) if args.convert_gray else sequence[...,::-1]  # gray 변환
+            save2npz(dst_pathname, data=data)  # 데이터를 npz 형식으로 저장
 
 print('Done.')

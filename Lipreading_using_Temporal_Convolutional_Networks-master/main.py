@@ -147,7 +147,7 @@ def evaluate(model, dset_loader, criterion, is_print=False):
             loss = criterion(logits, labels.cuda())  # loss 계산
             running_loss += loss.item() * input.size(0)  # loss.item(): loss 가 갖고 있는 scalar 값
         
-            ############################################
+            # ------------ Prediction, Confidence 출력 및 텍스트 파일 저장 ------------ 
 
             probs = torch.nn.functional.softmax(logits, dim=-1)
             probs = probs[0].detach().cpu().numpy()
