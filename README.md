@@ -18,6 +18,8 @@ How to run Lipreading_using_TCN project
         - pip install face-alignment
     - pytorch image tensor 처리 라이브러리인 torchvision 설치
         - pip install torchvision==0.2.0
+    - 학습 관리 툴 wandb 설치
+        - pip install wandb
 3. 데이터셋: [The Oxford-BBC Lip Reading in the Wild (LRW)](https://www.robots.ox.ac.uk/~vgg/data/lip_reading/lrw1.html)
     - 데이터셋 다운로드 받으려면 서약서 작성해서 이메일(rob.cooper@bbc.co.uk) 보내고 승인받은 비밀번호 입력해야 함
     - [데이터셋 서약서 다운로드 페이지](https://www.bbc.co.uk/rd/projects/lip-reading-datasets)

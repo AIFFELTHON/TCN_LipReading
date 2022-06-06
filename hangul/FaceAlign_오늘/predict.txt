@@ -1,1 +1,0 @@
-Prediction: 코로나, Confidence: 0.9330000281333923

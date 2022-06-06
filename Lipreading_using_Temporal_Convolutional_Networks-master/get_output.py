@@ -15,11 +15,12 @@ from preprocessing.transform import warp_img, cut_patch
 
 from torchvision import transforms as transforms
 from torchvision.transforms import ToTensor, ToPILImage
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import os
 from preprocessing.utils import * 
+
 
 STD_SIZE = (256, 256)
 STABLE_PNTS_IDS = [33, 36, 39, 42, 45]
@@ -134,13 +135,46 @@ def main():
     fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, device=args.device)
     
     video_pathname = args.video_data
+
+    # -------- 원본 프레임 저장 --------
+    cap = cv2.VideoCapture(video_pathname)
+    if not cap.isOpened():
+        print("could not open : ", video_pathname)
+        cap.release()
+        exit(0)
+
+    idx = 0
+    while True:
+        ret, image_np = cap.read()
+        if not ret:
+            break
+        origin = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+        origin_save_path = str(args.save_dir) + f'/origin/origin_{idx}.jpg'
+        # 파일 없을 경우                 
+        if not os.path.exists(os.path.dirname(origin_save_path)):                            
+            os.makedirs(os.path.dirname(origin_save_path))  # 디렉토리 생성
+        cv2.imwrite(origin_save_path, cv2.cvtColor(origin, cv2.COLOR_RGB2BGR))
+        idx += 1
+    
+    # -------- 원본 프레임 GIF 생성 --------
+    origin_frames = []
+    for idx in range(len(os.listdir(str(args.save_dir) + f'/origin'))):
+        origin_frames.append(Image.open(str(args.save_dir) + f'/origin/origin_{idx}.jpg'))
+
+    gif_name = str(args.save_dir) + f'/origin_GIF.gif'
+    origin_frames[0].save(f'{gif_name}', format='GIF',
+               append_images=origin_frames[1:],
+               save_all=True,
+               duration=50, loop=0)
+
+
+    # -------- 영상 처리 -------- 
     video_info = get_video_info(video_pathname, is_print=False)
     output_video = 0
     target_frames= args.queue_length-1
+    # 프레임 개수가 다를 경우 -> 전처리 진행
     if target_frames != video_info['length']:
-        # model = load_model(args.config_path)
         model = load_model(args.config_path, num_classes=len(vocab))
-        # model.load_state_dict(torch.load(Path(args.model_path), map_location=args.device)['model_state_dict'])
         model = model.to(args.device)
 
         queue = deque(maxlen=args.queue_length)
@@ -153,7 +187,6 @@ def main():
                 yield frame
         
         print(f'\n ------------ START ------------ \n')
-        frame_idx = 0
         landmark_idx = 0
         probs_idx = 0
         for frame_idx, frame in enumerate(get_yield(output_video)):
@@ -176,7 +209,8 @@ def main():
             # 파일 없을 경우                 
             if not os.path.exists(os.path.dirname(patch_save_path)):                            
                 os.makedirs(os.path.dirname(patch_save_path))  # 디렉토리 생성
-            cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+            # cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY))
             landmark_idx += 1
 
             patch = Image.fromarray(np.uint8(patch))  # numpy to image
@@ -193,9 +227,7 @@ def main():
             print(f'------------ FRAME {frame_idx} ------------') 
             
             if len(queue)+1 >= args.queue_length:
-                Prediction = ''
                 confidence = 0
-                # while True:
                 print(f'\n ------------ PREDICT ------------ \n')
                 with torch.no_grad():
                     model_input = torch.stack(list(queue), dim=1).unsqueeze(0)
@@ -203,31 +235,28 @@ def main():
                     probs = torch.nn.functional.softmax(logits, dim=-1)
                     probs = probs[0].detach().cpu().numpy()
 
-                # vis, prediction, confidence = visualize_probs(vocab, probs)
-                # cv2.imshow('probs', vis)
-                # probs_save_path = str(args.save_dir) + f'/probs/probs_{probs_idx}.jpg'
-                # 파일 없을 경우                 
-                # if not os.path.exists(os.path.dirname(probs_save_path)):                            
-                #     os.makedirs(os.path.dirname(probs_save_path))  # 디렉토리 생성
-                # cv2.imwrite(probs_save_path, vis)
-                # probs_idx += 1
-
                 top = np.argmax(probs)
                 prediction = vocab[top].strip()
                 confidence = np.round(probs[top], 3)
                 print(f'Prediction: {prediction}')
                 print(f'Confidence: {confidence}')
 
-                # if confidence < 0.15:
-                #     continue
-
+                # ------------ predict.txt 저장 -----------
                 txt_save_path = str(args.save_dir) + f'/predict.txt'
                 # 파일 없을 경우                 
                 if not os.path.exists(os.path.dirname(txt_save_path)):                            
                     os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
-                with open(txt_save_path, 'w') as f:
-                    f.write(f'Prediction: {prediction}, Confidence: {confidence}')
-                # break
+                with open(txt_save_path, 'w', encoding='utf8') as f:
+                    f.write(f'Prediction: {prediction}, Confidence: {confidence}\n')
+
+                # ------------ video.srt 저장 -----------
+                video_name, ext = video_pathname.split('/')[-1].split('.')
+                srt_save_path = str(args.save_dir) + f'/{video_name}.srt'
+                # 파일 없을 경우                 
+                if not os.path.exists(os.path.dirname(srt_save_path)):                            
+                    os.makedirs(os.path.dirname(srt_save_path))  # 디렉토리 생성
+                with open(srt_save_path, 'w', encoding='utf8') as f:
+                    f.write(f'1\n00:00:00,000 --> 00:00:01,333\n{prediction}\n')
                     
                 
             # END PROCESSING
@@ -235,16 +264,14 @@ def main():
             for x, y in landmarks:
                 cv2.circle(image_np, (int(x), int(y)), 2, (0, 0, 255))
         
-        # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
-        camera_save_path = str(args.save_dir) + f'/camera/camera_{frame_idx}.jpg'
-        # 파일 없을 경우                 
-        if not os.path.exists(os.path.dirname(camera_save_path)):                            
-            os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
-        cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
-                        
-        frame_idx += 1
+            # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+            camera_save_path = str(args.save_dir) + f'/camera/camera_{frame_idx}.jpg'
+            # 파일 없을 경우                 
+            if not os.path.exists(os.path.dirname(camera_save_path)):                            
+                os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
+            cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+    # 프레임 개수가 같을 경우
     else:
-        # model = load_model(args.config_path)
         model = load_model(args.config_path, num_classes=len(vocab))
         model.load_state_dict(torch.load(Path(args.model_path), map_location=args.device)['model_state_dict'])  # [500,768]
         model = model.to(args.device)
@@ -301,9 +328,6 @@ def main():
                 print(f'------------ FRAME {frame_idx} ------------') 
                 
                 if len(queue)+1 >= args.queue_length:
-                    Prediction = ''
-                    confidence = 0
-                    # while True:
                     print(f'\n ------------ PREDICT ------------ \n')
                     with torch.no_grad():
                         model_input = torch.stack(list(queue), dim=1).unsqueeze(0)
@@ -311,31 +335,28 @@ def main():
                         probs = torch.nn.functional.softmax(logits, dim=-1)
                         probs = probs[0].detach().cpu().numpy()
 
-                    # vis, prediction, confidence = visualize_probs(vocab, probs)
-                    # cv2.imshow('probs', vis)
-                    # probs_save_path = str(args.save_dir) + f'/probs/probs_{probs_idx}.jpg'
-                    # 파일 없을 경우                 
-                    # if not os.path.exists(os.path.dirname(probs_save_path)):                            
-                    #     os.makedirs(os.path.dirname(probs_save_path))  # 디렉토리 생성
-                    # cv2.imwrite(probs_save_path, vis)
-                    # probs_idx += 1
-
                     top = np.argmax(probs)
                     prediction = vocab[top].strip()
                     confidence = np.round(probs[top], 3)
                     print(f'Prediction: {prediction}')
                     print(f'Confidence: {confidence}')
 
-                    # if confidence < 0.15:
-                    #     continue
-
+                    # ------------ predict.txt 저장 -----------
                     txt_save_path = str(args.save_dir) + f'/predict.txt'
                     # 파일 없을 경우                 
                     if not os.path.exists(os.path.dirname(txt_save_path)):                            
                         os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
-                    with open(txt_save_path, 'w') as f:
-                        f.write(f'Prediction: {prediction}, Confidence: {confidence}')
-                    # break
+                    with open(txt_save_path, 'w', encoding='utf8') as f:
+                        f.write(f'Prediction: {prediction}, Confidence: {confidence}\n')
+
+                    # ------------ video.srt 저장 -----------
+                    video_name, ext = video_pathname.split('/')[-1].split('.')
+                    srt_save_path = str(args.save_dir) + f'/{video_name}.srt'
+                    # 파일 없을 경우                 
+                    if not os.path.exists(os.path.dirname(srt_save_path)):                            
+                        os.makedirs(os.path.dirname(srt_save_path))  # 디렉토리 생성
+                    with open(srt_save_path, 'w', encoding='utf8') as f:
+                        f.write(f'1\n00:00:00,000 --> 00:00:01,333\n{prediction}\n')
                         
                     
                 # END PROCESSING
@@ -348,19 +369,54 @@ def main():
             # 파일 없을 경우                 
             if not os.path.exists(os.path.dirname(camera_save_path)):                            
                 os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
-            cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
-
-            # key = cv2.waitKey(1)
-            # if key in {27, ord('q')}:  # 27 is Esc
-            #     break
-            # elif key == ord(' '):
-            #     cv2.waitKey(0)
-            
+            cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))            
             frame_idx += 1
     
     torch.cuda.empty_cache() # GPU 캐시 데이터 삭제
     cv2.destroyAllWindows()
     print(f'\n ------------ END ------------ \n')
+
+
+    # ------------ GIF 생성 ------------
+    print(f'\n ------------ GIF OUTPUT ------------ \n')
+
+    # 원본 프레임
+    origin_save_path = str(args.save_dir) + f'/origin/origin_0.jpg'
+    # 파일 없을 경우                 
+    if not os.path.exists(os.path.dirname(origin_save_path)):                            
+        os.makedirs(os.path.dirname(origin_save_path))  # 디렉토리 생성
+
+    origin_save_path_list = []
+    for idx in range(len(os.listdir(str(args.save_dir) + f'/origin'))):
+        origin_save_path_list.append(str(args.save_dir) + f'/origin/origin_{idx}.jpg')
+
+    # prediction 텍스트 추가된 프레임
+    predict_save_path = str(args.save_dir) + f'/predict/predict_0.jpg'
+    # 파일 없을 경우                 
+    if not os.path.exists(os.path.dirname(predict_save_path)):                            
+        os.makedirs(os.path.dirname(predict_save_path))  # 디렉토리 생성
+
+    origin_frames = []
+    my_font = ImageFont.truetype('/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf', 65)
+    for idx, origin_save_path in enumerate(origin_save_path_list):
+        # 텍스트(prediction) 추가
+        origin_frame = Image.open(origin_save_path)
+        origin_draw = ImageDraw.Draw(origin_frame)
+        height, width = origin_frame.size
+        origin_draw.text((width//4,height//4), prediction, font=my_font, fill=(255,0,0))
+        origin_frame.save(str(args.save_dir) + f'/predict/predict_{idx}.jpg')
+        ########################### 텍스트 붙인 이미지 저장 후 불러오기
+        origin_frame = Image.open(str(args.save_dir) + f'/predict/predict_{idx}.jpg')
+        origin_frames.append(origin_frame)
+    
+    # -------- GIF 생성 (텍스트 붙인 이미지 프레임) --------
+    gif_name = str(args.save_dir) + f'/predict_GIF.gif'
+    origin_frames[0].save(f'{gif_name}', format='GIF',
+               append_images=origin_frames[1:],
+               save_all=True,
+               duration=50, loop=0)
+
+    print(f'\n ------------ GIF DONE ------------ \n')
 
 
 if __name__ == '__main__':

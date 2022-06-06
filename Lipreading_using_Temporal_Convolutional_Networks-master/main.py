@@ -28,6 +28,7 @@ from lipreading.optim_utils import get_optimizer, CosineScheduler
 from lipreading.dataloaders import get_data_loaders, get_preprocessing_pipelines
 
 from pathlib import Path
+import wandb  # 학습 관리 툴 (Loss, Acc 자동 저장)
 
 
 # 인자값을 받아서 처리하는 함수
@@ -129,13 +130,6 @@ def evaluate(model, dset_loader, criterion, is_print=False):
 
     # evaluation/validation 과정에선 보통 model.eval()과 torch.no_grad()를 함께 사용함
     with torch.no_grad():
-        txt_save_path = str(args.save_dir) + f'/predict.txt'
-        # 파일 없을 경우                 
-        if not os.path.exists(os.path.dirname(txt_save_path)):                            
-            os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
-        
-        f = open(txt_save_path, 'w')
-
         inferences = []
         for batch_idx, (input, lengths, labels) in enumerate(tqdm(dset_loader)):
             # 모델 생성
@@ -147,7 +141,7 @@ def evaluate(model, dset_loader, criterion, is_print=False):
             loss = criterion(logits, labels.cuda())  # loss 계산
             running_loss += loss.item() * input.size(0)  # loss.item(): loss 가 갖고 있는 scalar 값
         
-            # ------------ Prediction, Confidence 출력 및 텍스트 파일 저장 ------------ 
+            # ------------ Prediction, Confidence 출력 ------------ 
 
             probs = torch.nn.functional.softmax(logits, dim=-1)
             probs = probs[0].detach().cpu().numpy()
@@ -164,22 +158,29 @@ def evaluate(model, dset_loader, criterion, is_print=False):
                 'confidence': confidence
             })
 
-            f.writelines(f'Prediction: {prediction}, Confidence: {confidence}\n')
-
             if is_print:
                 print()
                 print(f'Prediction: {prediction}')
                 print(f'Confidence: {confidence}')
                 print()
 
+    # ------------ Prediction, Confidence 텍스트 파일 저장 ------------ 
+    txt_save_path = str(args.save_dir) + f'/predict.txt'
+    # 파일 없을 경우                 
+    if not os.path.exists(os.path.dirname(txt_save_path)):                            
+        os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
+    with open(txt_save_path, 'w') as f:
+        for inference in inferences:
+            prediction = inference['prediction']
+            confidence = inference['confidence']
+            f.writelines(f'Prediction: {prediction}, Confidence: {confidence}\n')
 
-    f.close()
     print('Test Dataset {} In Total \t CR: {}'.format( len(dset_loader.dataset), running_corrects/len(dset_loader.dataset)))  # 데이터개수, 정확도 출력
     return running_corrects/len(dset_loader.dataset), running_loss/len(dset_loader.dataset), inferences  # 정확도, loss, inferences 반환
 
 
 # 모델 학습
-def train(model, dset_loader, criterion, epoch, optimizer, logger):
+def train(wandb, model, dset_loader, criterion, epoch, optimizer, logger):
     data_time = AverageMeter()  # 평균, 현재값 저장
     batch_time = AverageMeter()  # 평균, 현재값 저장
 
@@ -226,6 +227,12 @@ def train(model, dset_loader, criterion, epoch, optimizer, logger):
         running_loss += loss.item()*input.size(0)  # loss.item(): loss 가 갖고 있는 scalar 값
         running_corrects += lam * predicted.eq(labels_a.view_as(predicted)).sum().item() + (1 - lam) * predicted.eq(labels_b.view_as(predicted)).sum().item()  # 정확도 계산
         running_all += input.size(0)
+
+
+        # ------------------ wandb 로그 입력 ------------------
+        wandb.log({'loss': running_loss, 'acc': running_corrects}, step=epoch)
+
+
         # -- log intermediate results # 중간 결과 기록
         if batch_idx % args.interval == 0 or (batch_idx == len(dset_loader)-1):
             # 로거 INFO 작성
@@ -267,6 +274,15 @@ def get_model_from_json():
 
 # main() 함수
 def main():
+
+    # wandb 연결
+    wandb.init(project="Lipreading_using_TCN_running", entity="hronaie")
+    wandb.config = {
+        "learning_rate": args.lr,
+        "epochs": args.epochs,
+        "batch_size": args.batch_size
+        }
+    
     
     os.environ['CUDA_LAUNCH_BLOCKING']="1"
     os.environ["CUDA_VISIBLE_DEVICES"]="0"  # GPU 선택 코드 추가
@@ -309,6 +325,7 @@ def main():
             filename = filename.split('/')[-1]
             save_npz_path = os.path.join(args.mouth_embedding_out_path, filename)
             
+            # ExtractEmbedding 은 코드 수정이 필요함!
             save2npz(save_npz_path, data = embeddings.cpu().detach().numpy())  # npz 파일 저장
             # save2npz( args.mouth_embedding_out_path, data = extract_feats(model).cpu().detach().numpy())  # npz 파일 저장
             return
@@ -325,12 +342,11 @@ def main():
     if args.model_path and args.init_epoch > 0:
         scheduler.adjust_lr(optimizer, args.init_epoch-1)  # learning rate 업데이트
 
-    epoch = args.init_epoch  # epoch 초기화
-    print()
 
+    epoch = args.init_epoch  # epoch 초기화
     while epoch < args.epochs:
-        model = train(model, dset_loaders['train'], criterion, epoch, optimizer, logger)  # 모델 학습
-        acc_avg_val, loss_avg_val = evaluate(model, dset_loaders['val'], criterion)  # 모델 평가
+        model = train(wandb, model, dset_loaders['train'], criterion, epoch, optimizer, logger)  # 모델 학습
+        acc_avg_val, loss_avg_val, inferences = evaluate(model, dset_loaders['val'], criterion)  # 모델 평가
         logger.info('{} Epoch:\t{:2}\tLoss val: {:.4f}\tAcc val:{:.4f}, LR: {}'.format('val', epoch, loss_avg_val, acc_avg_val, showLR(optimizer)))  # 로거 INFO 작성
         # -- save checkpoint # 체크포인트 상태 기록
         save_dict = {
@@ -345,7 +361,7 @@ def main():
     # -- evaluate best-performing epoch on test partition # test 데이터로 best 성능의 epoch 평가
     best_fp = os.path.join(ckpt_saver.save_dir, ckpt_saver.best_fn)  # best 체크포인트 경로
     _ = load_model(best_fp, model)  # 모델 불러오기
-    acc_avg_test, loss_avg_test = evaluate(model, dset_loaders['test'], criterion)  # 모델 평가
+    acc_avg_test, loss_avg_test, inferences = evaluate(model, dset_loaders['test'], criterion)  # 모델 평가
     logger.info('Test time performance of best epoch: {} (loss: {})'.format(acc_avg_test, loss_avg_test))  # 로거 INFO 작성
     torch.cuda.empty_cache()  # GPU 캐시 데이터 삭제
 
