@@ -4,6 +4,6 @@
 # --save-direc ./datasets/audio_data/ 
 
 python preprocessing/extract_audio_from_video.py \
---video-direc ../hangul/ \
---filename-path ../hangul/오늘_detected_face.csv \
+--video-direc ../hangeul/ \
+--filename-path ../hangeul/오늘_detected_face.csv \
 --save-direc ./datasets/audio_data/ 

@@ -46,7 +46,7 @@ def read_video(filename):
     
 
 
-# video 정보 가져오기
+# Video 정보 가져오기
 def get_video_info(infilename, is_print=False):
     cap = cv2.VideoCapture(infilename)
     if not cap.isOpened():
@@ -75,7 +75,7 @@ def get_video_info(infilename, is_print=False):
     
     return video_info
 
-# video -> numpy
+# Video -> Numpy
 # 참고 깃허브 코드: https://github.com/khazit/Lip2Word/blob/master/lipReader.py#L22
 def videoToArray(video_pathname, is_gray=True) :
     
@@ -118,7 +118,7 @@ def videoToArray(video_pathname, is_gray=True) :
     return video  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy 반환
 
 
-# frame sampling (프레임 개수 맞추기)
+# Frame Sampling (프레임 개수 맞추기)
 # 참고 깃허브 코드: https://github.com/khazit/Lip2Word/blob/master/lipReader.py#L62
 def frameAdjust(video, target_frames=29):
     n_frames = video.shape[0]  # 영상 프레임 개수

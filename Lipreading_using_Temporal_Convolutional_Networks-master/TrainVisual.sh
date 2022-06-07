@@ -12,7 +12,7 @@
 
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
---annonation-direc ../hangul/ \
+--annonation-direc ../hangeul/ \
 --data-dir ./datasets/visual_data/ \
 # --backbone-type resnet \  # shufflenet
 # --relu-type relu \  # prelu

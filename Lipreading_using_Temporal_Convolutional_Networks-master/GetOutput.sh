@@ -12,6 +12,6 @@ python get_output.py \
 --model-path train_logs/tcn/2022-06-06T19:09:00/ckpt.best.pth.tar \
 --device cuda \
 --queue-length 30 \
---video-data ../hangul/함께/test/함께_00032.avi \
+--video-data ../hangeul/함께/test/함께_00032.avi \
 --label-path labels/500WordsSortedList.txt \
---save-dir ../hangul/GetOutput_함께
+--save-dir ../hangeul/GetOutput_함께
