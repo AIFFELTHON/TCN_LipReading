@@ -17,10 +17,10 @@ ipython_config.py
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks
 
-sample
-hangul
-Lipreading_using_Temporal_Convolutional_Networks-master/landmarks
-Lipreading_using_Temporal_Convolutional_Networks-master/datasets
-Lipreading_using_Temporal_Convolutional_Networks-master/wandb
-Lipreading_using_Temporal_Convolutional_Networks-master/train_logs
-Lipreading_using_Temporal_Convolutional_Networks-master/result
+# sample
+# hangul
+# Lipreading_using_Temporal_Convolutional_Networks-master/landmarks
+# Lipreading_using_Temporal_Convolutional_Networks-master/datasets
+# Lipreading_using_Temporal_Convolutional_Networks-master/wandb
+# Lipreading_using_Temporal_Convolutional_Networks-master/train_logs
+# Lipreading_using_Temporal_Convolutional_Networks-master/result
