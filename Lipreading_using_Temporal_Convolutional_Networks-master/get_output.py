@@ -62,20 +62,9 @@ def visualize_probs(vocab, probs, col_width=4, col_height=300):
     num_classes = len(probs)
     out = np.zeros((col_height, num_classes * col_width + (num_classes - 1), 3), dtype=np.uint8)
 
-    # fig, ax = plt.subplots(figsize=((col_width, col_height)))
-
     for i, p in enumerate(probs):
         x = (col_width + 1) * i
         # cv2.rectangle(out, (x, 0), (x + col_width - 1, round(p * col_height)), (255, 255, 255), 1)  # cv2.rectangle(image, start, end, color, thickness)
-        # rect = patches.Rectangle(
-        #     (x,0),
-        #     col_width - 1,
-        #     round(p * col_height),
-        #     linewidth=1,
-        #     edgecolor='white',
-        #     fill=False
-        # )
-        # ax.add_patch(rect)
         
     top = np.argmax(probs)
 
@@ -83,23 +72,6 @@ def visualize_probs(vocab, probs, col_width=4, col_height=300):
     confidence = np.round(probs[top], 3)
     print(f'Prediction: {prediction}')
     print(f'Confidence: {confidence}')
-
-    # cv2.addText(img, 문자열, 좌표, 폰트, 두께, 색상)
-    # cv2.addText(out, f'Prediction: {vocab[top]}', (10, out.shape[0] - 30), 'Arial', color=(255, 255, 255))
-    # cv2.addText(out, f'Confidence: {probs[top]:.3f}', (10, out.shape[0] - 10), 'Arial', color=(255, 255, 255))
-
-    # fontdict = {
-    #     'family': 'Arial',
-    #     'color': 'white'
-    # }
-    # plt.text(10, 30, f'Prediction: {prediction}', fontdict=fontdict)
-    # plt.text(10, 10, f'Confidence: {confidence}', fontdict=fontdict)
-
-    # SAVE_PATH = f'/home/PHR/Lipreading_using_TCN_running/sample/FaceAlign_AFTERNOON/result/result_{prediction}.jpg'
-    # ax.axes.get_xaxis().set_visible(False)
-    # ax.axes.get_yaxis().set_visible(False)
-    # plt.subplots_adjust(left = 0, bottom = 0, right = 1, top = 1, hspace = 0, wspace = 0)
-    # plt.savefig(fname=SAVE_PATH, bbox_inches='tight', pad_inches=0)
 
     return out, prediction, confidence
 
@@ -325,7 +297,7 @@ def main():
                 )
                 patch_torch = img_transform(patch)
                 queue.append(patch_torch)
-                print(f'------------ FRAME {frame_idx} ------------') 
+                print(f' ------------ FRAME {frame_idx} ------------ ') 
                 
                 if len(queue)+1 >= args.queue_length:
                     print(f'\n ------------ PREDICT ------------ \n')
@@ -378,9 +350,9 @@ def main():
 
 
     # ------------ GIF 생성 ------------
-    print(f'\n ------------ GIF OUTPUT ------------ \n')
+    print(f'\n ------------ GIF OUTPUT ------------ ')
 
-    # 원본 프레임
+    # 원본 프레임 경로
     origin_save_path = str(args.save_dir) + f'/origin/origin_0.jpg'
     # 파일 없을 경우                 
     if not os.path.exists(os.path.dirname(origin_save_path)):                            
@@ -390,7 +362,7 @@ def main():
     for idx in range(len(os.listdir(str(args.save_dir) + f'/origin'))):
         origin_save_path_list.append(str(args.save_dir) + f'/origin/origin_{idx}.jpg')
 
-    # prediction 텍스트 추가된 프레임
+    # 텍스트(prediction) 붙인 프레임 경로
     predict_save_path = str(args.save_dir) + f'/predict/predict_0.jpg'
     # 파일 없을 경우                 
     if not os.path.exists(os.path.dirname(predict_save_path)):                            
@@ -399,24 +371,25 @@ def main():
     origin_frames = []
     my_font = ImageFont.truetype('/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf', 65)
     for idx, origin_save_path in enumerate(origin_save_path_list):
-        # 텍스트(prediction) 추가
+        # 프레임에 텍스트(prediction) 붙이기
         origin_frame = Image.open(origin_save_path)
         origin_draw = ImageDraw.Draw(origin_frame)
         height, width = origin_frame.size
         origin_draw.text((width//4,height//4), prediction, font=my_font, fill=(255,0,0))
-        origin_frame.save(str(args.save_dir) + f'/predict/predict_{idx}.jpg')
-        ########################### 텍스트 붙인 이미지 저장 후 불러오기
+        origin_frame.save(str(args.save_dir) + f'/predict/predict_{idx}.jpg')  # 텍스트(prediction) 붙인 프레임 저장
+        
+        # 텍스트(prediction) 붙인 프레임 불러오기
         origin_frame = Image.open(str(args.save_dir) + f'/predict/predict_{idx}.jpg')
         origin_frames.append(origin_frame)
     
-    # -------- GIF 생성 (텍스트 붙인 이미지 프레임) --------
+    # -------- 텍스트(prediction) 붙인 이미지 프레임으로 GIF 생성 --------
     gif_name = str(args.save_dir) + f'/predict_GIF.gif'
     origin_frames[0].save(f'{gif_name}', format='GIF',
                append_images=origin_frames[1:],
                save_all=True,
                duration=50, loop=0)
 
-    print(f'\n ------------ GIF DONE ------------ \n')
+    print(f' ------------ GIF DONE ------------ \n')
 
 
 if __name__ == '__main__':
