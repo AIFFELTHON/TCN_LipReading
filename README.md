@@ -36,6 +36,7 @@ RunningShuffleNetTCN
     │   ├── train      
     │   └── val
     └── ...
+```
 
 ## Setting
 
