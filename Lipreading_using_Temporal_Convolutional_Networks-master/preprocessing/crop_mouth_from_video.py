@@ -16,12 +16,11 @@ import numpy as np
 from collections import deque  # collections 모듈에 있는 데크 불러오기 # 데크: 스택과 큐를 합친 자료구조
 
 from utils import *  # utils.py 모듈에 있는 모든 함수 불러오기
-from transform import *  # transform.py 모듈에 있는 모든 함수(linear_interpolate(), warp_img(), apply_transform(), cut_patch(), convert_bgr2gray()) 불러오기
+from transform import *  # transform.py 모듈에 있는 모든 함수 불러오기
 
 import dlib  # face landmark 찾는 라이브러리
 import face_alignment  # face landmark 찾는 라이브러리
 from PIL import Image
-from torchvision.transforms.functional import to_tensor
 
 
 # 인자값을 받아서 처리하는 함수
@@ -199,23 +198,10 @@ for filename_idx, line in enumerate(lines):
             # face landmark list 가 비어있지 않은 경우
             if list_landmarks:
                 for dlib_rect, landmark in zip(dlib_rects, list_landmarks):
-                    
-                    # CROP_START_X = landmark[5][0]
-                    # CROP_START_Y = landmark[29][1]
-                    # CROP_END_X = landmark[11][0]
-                    # CROP_END_Y = landmark[8][1]
-                    
-                    # crop_img = img[CROP_START_Y:CROP_END_Y,CROP_START_X:CROP_END_X]  # 입술 crop
-
                     face_landmark = np.array(landmark)  # face landmark
                     eye_landmark = np.array(landmark[36:48])  # eye landmark
 
                     return face_landmark, eye_landmark
-
-                    # face_landmark_resize = face_landmark / face_rate
-                    # eye_landmark_resize = eye_landmark / eye_rate
-
-                    # return face_landmark_resize, eye_landmark_resize
             # face landmark list 가 비어있는 경우
             else:
                 landmark = [(0.0, 0.0)] * 68
@@ -225,8 +211,7 @@ for filename_idx, line in enumerate(lines):
         
         
         target_frames = 29  # 원하는 프레임 개수
-        # video = videoToArray(video_pathname, is_gray=args.convert_gray)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
-        video = videoToArray(video_pathname, is_gray=True)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
+        video = videoToArray(video_pathname, is_gray=args.convert_gray)  # 영상 정보 앞에 영상 프레임 개수를 추가한 numpy
         output_video = frameAdjust(video, target_frames)  # frame sampling (프레임 개수 맞추기)        
 
         multi_sub_landmarks = []
@@ -252,10 +237,7 @@ for filename_idx, line in enumerate(lines):
 
         multi_sub_landmarks = np.array(multi_sub_landmarks)  # list to numpy
         save2npz(landmarks_pathname, data=multi_sub_landmarks)  # face landmark npz 저장
-        
-        print()
-        print(' ------------ npz 저장 ------------ ')
-        print()
+        print('\n ------------ npz 저장 ------------ \n')
     
     # video 에 대한 face landmark npz 파일이 있는 경우
     else:

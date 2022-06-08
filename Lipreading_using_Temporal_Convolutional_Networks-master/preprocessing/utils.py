@@ -19,7 +19,6 @@ def read_txt_lines(filepath):
 
 # npz 저장
 def save2npz(filename, data=None):
-# def save2npz(filename, data=None, frame_idx=0):
     # 데이터가 비어있는지 확인, 없으면 AssertionError 메시지를 띄움               
     assert data is not None, "data is {}".format(data)          
     
@@ -27,7 +26,6 @@ def save2npz(filename, data=None):
     if not os.path.exists(os.path.dirname(filename)):                            
         os.makedirs(os.path.dirname(filename))  # 디렉토리 생성
     np.savez_compressed(filename, data=data)  # 압축되지 않은 .npz 파일 형식 으로 여러 배열 저장
-    # np.savez_compressed(filename, data=data, frame_idx=frame_idx)  # 압축되지 않은 .npz 파일 형식 으로 여러 배열 저장
 
 
 # 비디오 불러오기
@@ -36,7 +34,7 @@ def read_video(filename):
 
     while(cap.isOpened()):  # 영상 파일(카메라)이 정상적으로 열렸는지(초기화되었는지) 여부  
         # ret: 정상적으로 읽어왔는가?
-        # frame: 한 장의 이미지(frame) 가져오기                                                      
+        # frame: 한 장의 이미지(frame) 가져오기
         ret, frame = cap.read() # BGR                                            
         if ret:  # 프레임 정보를 정상적으로 읽지 못하면                                                                  
             yield frame  # 프레임을 함수 바깥으로 전달하면서 코드 실행을 함수 바깥에 양보                                                        

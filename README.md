@@ -1,15 +1,62 @@
 # Lipreading_using_TCN_running
 How to run Lipreading_using_TCN project
 
+## Directory Trees
+
+```
+RunningShuffleNetTCN
+├── ShuffleNetTCN
+│   ├── configs
+│   ├── data
+│   ├── datasets
+│   │   ├── audio_data
+│   │   └── visual_data
+│   │       ├── {word}
+│   │       │   ├── test
+│   │       │   ├── train
+│   │       │   └── val
+│   │       └── ...
+│   ├── doc
+│   ├── labels
+│   ├── landmarks
+│   │   └── hangeul_landmarks
+│   │       ├── {word}
+│   │       │   ├── test
+│   │       │   ├── train
+│   │       │   └── val
+│   │       └── ...
+│   ├── lipreading
+│   │   └── models
+│   ├── models
+│   └── preprocessing
+├── fonts
+└── hangeul
+    ├── {word}
+    │   ├── test
+    │   ├── train      
+    │   └── val
+    └── ...
+
 ## Setting
 
 1. 환경
-    - GCP Ubuntu 18.04.6 LTS
+    - GCP Ubuntu 18.04.6 LTS, GPU NVIDIA Tesla V100
+        - GCP Ubuntu 에서 한글 폰트 다운로드
+            - sudo apt-get update
+            - sudo apt-get upgrade -y
+            - sudo apt-get install fonts-nanum
+        - GCP Ubuntu 에서 설치되어 있는 폰트 확인
+            - fc-list | grep -i nanum
+        - 폴더 트리 출력 라이브러리 설치
+            - sudo apt-get install tree
+        - 폴더 트리 출력
+            - tree -d ./{directory}
     - Anaconda 사용
     - python 3.7.13
     - CUDA Version: 11.4
 2. 라이브러리 설치
-    - pip install -r requirements.txt
+    - 기본 환경 세팅
+        - pip install -r requirements.txt
     - audio 전처리하기 위해 ffmpeg 설치 필요
         - pip install ffmpeg-python
     - 참고: LRW 데이터셋 face landmark 는 csv 파일로 제공되므로 라이브러리(dlib, face_alignment 등) 필요 없음
@@ -24,7 +71,8 @@ How to run Lipreading_using_TCN project
     - 데이터셋 다운로드 받으려면 서약서 작성해서 이메일(rob.cooper@bbc.co.uk) 보내고 승인받은 비밀번호 입력해야 함
     - [데이터셋 서약서 다운로드 페이지](https://www.bbc.co.uk/rd/projects/lip-reading-datasets)
     - **조건 없이 다운받을 수 있는 샘플 데이터 1개(AFTERNOON.mp4, AFTERNOON.txt)를 복제해서 실행 도전 성공**
-    - **우리가 사용할 한국어 데이터 1개 복제해서 도전하는 중**
+    - **우리가 사용할 한국어 데이터 1개 복제해서 실행 도전 성공**
+    - 구축한 한국어 데이터셋으로 train, test 완료
 
 ## Execution
 
@@ -35,6 +83,7 @@ How to run Lipreading_using_TCN project
     - **--conver-gray 필수! 제대로 수행 안 될 경우, 스크립트에서 직접 arument 에서 default=True 설정**
 
 ```bash
+# CropMousth.sh
 python preprocessing/crop_mouth_from_video.py \
 --video-direc ../sample/ \
 --landmark-direc ./landmarks/LRW_landmarks/ \
@@ -48,6 +97,7 @@ python preprocessing/crop_mouth_from_video.py \
     - 영상 -> 소리 추출 -> (Sampling 진행) -> numpy 변환 -> datasets/audio_data 경로에 .npz 저장
 
 ```bash
+# ExtractAudio.sh
 python preprocessing/extract_audio_from_video.py \
 --video-direc ../sample/ \
 --filename-path ../sample/AFTERNOON_detected_face.csv \
@@ -93,8 +143,7 @@ def get_data_loaders(args):
                         shuffle=True,
                         collate_fn=pad_packed_collate,
                         pin_memory=True,
-                        # num_workers=args.workers,
-                        num_workers=2,  # GCP core 4개의 절반 => 2로 설정한 코드로 변경
+                        num_workers=2,  # GCP core 4개의 절반 => 2로 설정한 코드로 변경 # num_workers=args.workers,
                         worker_init_fn=np.random.seed(1)) for x in ['train', 'val', 'test']}
     
     
@@ -108,6 +157,7 @@ def get_data_loaders(args):
     - 데이터 디렉토리 경로 설정 주의
 
 ```bash
+# TrainVisual.sh
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
 --annonation-direc ../sample/ \
@@ -118,6 +168,7 @@ python main.py \
     - 데이터 디렉토리 경로 설정 주의
 
 ```bash
+# TrainAudio.sh
 python main.py \
 --modality raw_audio \
 --config-path ./configs/lrw_resnet18_mstcn.json \
@@ -130,6 +181,7 @@ python main.py \
 1. Evaluate the visual-only performance (lipreading)
 
 ```bash
+# TestVisual.sh
 python main.py \
 --config-path ./configs/lrw_resnet18_mstcn.json \
 --model-path ./models/lrw_resnet18_mstcn.pth.tar \
@@ -140,6 +192,7 @@ python main.py \
 2. Evaluate the audio-only performance
 
 ```bash
+# TrainAudio.sh
 python main.py \
 --modality raw_audio \
 --config-path ./configs/lrw_resnet18_mstcn.json \
@@ -151,6 +204,7 @@ python main.py \
 ### Extract Embeddings
 
 ```bash
+# ExtractEmbeddings.sh
 python main.py \
 --extract-feats \
 --data-dir ./datasets/visual_data/ \

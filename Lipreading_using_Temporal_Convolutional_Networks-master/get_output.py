@@ -90,6 +90,13 @@ def load_args(default_config=None):
     return args
 
 
+# 디렉토리 생성
+def make_dir(file_path):
+    # 파일 없을 경우                 
+    if not os.path.exists(os.path.dirname(file_path)):                            
+        os.makedirs(os.path.dirname(file_path))  # 디렉토리 생성
+
+
 def main():
     
     os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
@@ -122,9 +129,7 @@ def main():
             break
         origin = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
         origin_save_path = str(args.save_dir) + f'/origin/origin_{idx}.jpg'
-        # 파일 없을 경우                 
-        if not os.path.exists(os.path.dirname(origin_save_path)):                            
-            os.makedirs(os.path.dirname(origin_save_path))  # 디렉토리 생성
+        make_dir(origin_save_path)
         cv2.imwrite(origin_save_path, cv2.cvtColor(origin, cv2.COLOR_RGB2BGR))
         idx += 1
     
@@ -178,9 +183,7 @@ def main():
             
             # cv2.imshow('patch', cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
             patch_save_path = str(args.save_dir) + f'/patch/patch_{landmark_idx}.jpg'
-            # 파일 없을 경우                 
-            if not os.path.exists(os.path.dirname(patch_save_path)):                            
-                os.makedirs(os.path.dirname(patch_save_path))  # 디렉토리 생성
+            make_dir(patch_save_path)
             # cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
             cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY))
             landmark_idx += 1
@@ -196,7 +199,7 @@ def main():
             )
             patch_torch = img_transform(patch)
             queue.append(patch_torch)
-            print(f'------------ FRAME {frame_idx} ------------') 
+            print(f'------------ FRAME {str(frame_idx).zfill(2)} ------------') 
             
             if len(queue)+1 >= args.queue_length:
                 confidence = 0
@@ -215,21 +218,16 @@ def main():
 
                 # ------------ predict.txt 저장 -----------
                 txt_save_path = str(args.save_dir) + f'/predict.txt'
-                # 파일 없을 경우                 
-                if not os.path.exists(os.path.dirname(txt_save_path)):                            
-                    os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
+                make_dir(txt_save_path)
                 with open(txt_save_path, 'w', encoding='utf8') as f:
                     f.write(f'Prediction: {prediction}, Confidence: {confidence}\n')
 
                 # ------------ video.srt 저장 -----------
                 video_name, ext = video_pathname.split('/')[-1].split('.')
                 srt_save_path = str(args.save_dir) + f'/{video_name}.srt'
-                # 파일 없을 경우                 
-                if not os.path.exists(os.path.dirname(srt_save_path)):                            
-                    os.makedirs(os.path.dirname(srt_save_path))  # 디렉토리 생성
+                make_dir(srt_save_path)
                 with open(srt_save_path, 'w', encoding='utf8') as f:
                     f.write(f'1\n00:00:00,000 --> 00:00:01,333\n{prediction}\n')
-                    
                 
             # END PROCESSING
 
@@ -238,9 +236,7 @@ def main():
         
             # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
             camera_save_path = str(args.save_dir) + f'/camera/camera_{frame_idx}.jpg'
-            # 파일 없을 경우                 
-            if not os.path.exists(os.path.dirname(camera_save_path)):                            
-                os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
+            make_dir(camera_save_path)
             cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
     # 프레임 개수가 같을 경우
     else:
@@ -280,9 +276,7 @@ def main():
                 
                 # cv2.imshow('patch', cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
                 patch_save_path = str(args.save_dir) + f'/patch/patch_{landmark_idx}.jpg'
-                # 파일 없을 경우                 
-                if not os.path.exists(os.path.dirname(patch_save_path)):                            
-                    os.makedirs(os.path.dirname(patch_save_path))  # 디렉토리 생성
+                make_dir(patch_save_path)
                 cv2.imwrite(patch_save_path, cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
                 landmark_idx += 1
 
@@ -297,7 +291,7 @@ def main():
                 )
                 patch_torch = img_transform(patch)
                 queue.append(patch_torch)
-                print(f' ------------ FRAME {frame_idx} ------------ ') 
+                print(f' ------------ FRAME {str(frame_idx).zfill(2)} ------------ ') 
                 
                 if len(queue)+1 >= args.queue_length:
                     print(f'\n ------------ PREDICT ------------ \n')
@@ -315,22 +309,17 @@ def main():
 
                     # ------------ predict.txt 저장 -----------
                     txt_save_path = str(args.save_dir) + f'/predict.txt'
-                    # 파일 없을 경우                 
-                    if not os.path.exists(os.path.dirname(txt_save_path)):                            
-                        os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
+                    make_dir(txt_save_path)
                     with open(txt_save_path, 'w', encoding='utf8') as f:
                         f.write(f'Prediction: {prediction}, Confidence: {confidence}\n')
 
                     # ------------ video.srt 저장 -----------
                     video_name, ext = video_pathname.split('/')[-1].split('.')
                     srt_save_path = str(args.save_dir) + f'/{video_name}.srt'
-                    # 파일 없을 경우                 
-                    if not os.path.exists(os.path.dirname(srt_save_path)):                            
-                        os.makedirs(os.path.dirname(srt_save_path))  # 디렉토리 생성
+                    make_dir(srt_save_path)
                     with open(srt_save_path, 'w', encoding='utf8') as f:
                         f.write(f'1\n00:00:00,000 --> 00:00:01,333\n{prediction}\n')
                         
-                    
                 # END PROCESSING
 
                 for x, y in landmarks:
@@ -338,9 +327,7 @@ def main():
 
             # cv2.imshow('camera', cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
             camera_save_path = str(args.save_dir) + f'/camera/camera_{frame_idx}.jpg'
-            # 파일 없을 경우                 
-            if not os.path.exists(os.path.dirname(camera_save_path)):                            
-                os.makedirs(os.path.dirname(camera_save_path))  # 디렉토리 생성
+            make_dir(camera_save_path)
             cv2.imwrite(camera_save_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))            
             frame_idx += 1
     
@@ -354,9 +341,7 @@ def main():
 
     # 원본 프레임 경로
     origin_save_path = str(args.save_dir) + f'/origin/origin_0.jpg'
-    # 파일 없을 경우                 
-    if not os.path.exists(os.path.dirname(origin_save_path)):                            
-        os.makedirs(os.path.dirname(origin_save_path))  # 디렉토리 생성
+    make_dir(origin_save_path)
 
     origin_save_path_list = []
     for idx in range(len(os.listdir(str(args.save_dir) + f'/origin'))):
@@ -364,12 +349,11 @@ def main():
 
     # 텍스트(prediction) 붙인 프레임 경로
     predict_save_path = str(args.save_dir) + f'/predict/predict_0.jpg'
-    # 파일 없을 경우                 
-    if not os.path.exists(os.path.dirname(predict_save_path)):                            
-        os.makedirs(os.path.dirname(predict_save_path))  # 디렉토리 생성
+    make_dir(predict_save_path)
 
     origin_frames = []
-    my_font = ImageFont.truetype('/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf', 65)
+    font_path = '../fonts/NanumGothic.ttf'
+    my_font = ImageFont.truetype(font_path, 65)
     for idx, origin_save_path in enumerate(origin_save_path_list):
         # 프레임에 텍스트(prediction) 붙이기
         origin_frame = Image.open(origin_save_path)
