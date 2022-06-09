@@ -39,14 +39,14 @@ def load_args(default_config=None):
     # 입력받을 인자값 목록
     # -- dataset config
     parser.add_argument('--dataset', default='lrw', help='dataset selection')
-    parser.add_argument('--num-classes', type=int, default=500, help='Number of classes')
+    parser.add_argument('--num-classes', type=int, default=15, help='Number of classes')  # default=500 에서 default=15 (사용 한국어 데이터셋 개수) 로 변경
     parser.add_argument('--modality', default='video', choices=['video', 'raw_audio'], help='choose the modality')
     # -- directory
     parser.add_argument('--data-dir', default='./datasets/LRW_h96w96_mouth_crop_gray', help='Loaded data directory')
     parser.add_argument('--label-path', type=str, default='./labels/500WordsSortedList.txt', help='Path to txt file with labels')
     parser.add_argument('--annonation-direc', default=None, help='Loaded data directory')
     # -- model config
-    parser.add_argument('--backbone-type', type=str, default='resnet', choices=['resnet', 'shufflenet'], help='Architecture used for backbone')
+    parser.add_argument('--backbone-type', type=str, default='shufflenet', choices=['resnet', 'shufflenet'], help='Architecture used for backbone')
     parser.add_argument('--relu-type', type=str, default='relu', choices=['relu','prelu'], help='what relu to use' )
     parser.add_argument('--width-mult', type=float, default=1.0, help='Width multiplier for mobilenets and shufflenets')
     # -- TCN config
@@ -61,7 +61,7 @@ def load_args(default_config=None):
     parser.add_argument('--optimizer',type=str, default='adamw', choices = ['adam','sgd','adamw'])
     parser.add_argument('--lr', default=3e-4, type=float, help='initial learning rate')
     parser.add_argument('--init-epoch', default=0, type=int, help='epoch to start at')
-    parser.add_argument('--epochs', default=100, type=int, help='number of epochs')  # dafault=80 에서 default=10 (테스트 용도) 로 변경
+    parser.add_argument('--epochs', default=200, type=int, help='number of epochs')  # dafault=80 에서 default=10 (테스트 용도) 로 변경
     parser.add_argument('--test', default=False, action='store_true', help='training mode')
     parser.add_argument('--save-dir', type=Path, default=Path('./result/'))
     # -- mixup
@@ -127,6 +127,9 @@ def evaluate(model, dset_loader, criterion, is_print=False):
 
     running_loss = 0.
     running_corrects = 0.
+    
+    label_list = dset_loader[1]
+    dset_loader = dset_loader[0]
 
     # evaluation/validation 과정에선 보통 model.eval()과 torch.no_grad()를 함께 사용함
     with torch.no_grad():
@@ -151,15 +154,18 @@ def evaluate(model, dset_loader, criterion, is_print=False):
                 vocab = fp.readlines()
 
             top = np.argmax(probs)
+            label = label_list[top]
             prediction = vocab[top].strip()
             confidence = np.round(probs[top], 3)
             inferences.append({
+                'label': label,
                 'prediction': prediction,
                 'confidence': confidence
             })
 
             if is_print:
                 print()
+                print(f'label: {label}')
                 print(f'Prediction: {prediction}')
                 print(f'Confidence: {confidence}')
                 print()
@@ -171,6 +177,7 @@ def evaluate(model, dset_loader, criterion, is_print=False):
         os.makedirs(os.path.dirname(txt_save_path))  # 디렉토리 생성
     with open(txt_save_path, 'w') as f:
         for inference in inferences:
+            label = inference['label']
             prediction = inference['prediction']
             confidence = inference['confidence']
             f.writelines(f'Prediction: {prediction}, Confidence: {confidence}\n')
@@ -276,12 +283,12 @@ def get_model_from_json():
 def main():
 
     # wandb 연결
-    wandb.init(project="Lipreading_using_TCN_running", entity="hronaie")
-    wandb.config = {
-        "learning_rate": args.lr,
-        "epochs": args.epochs,
-        "batch_size": args.batch_size
-        }
+    # wandb.init(project="Lipreading_using_TCN_running", entity="hronaie")
+    # wandb.config = {
+    #     "learning_rate": args.lr,
+    #     "epochs": args.epochs,
+    #     "batch_size": args.batch_size
+    #     }
     
     
     os.environ['CUDA_LAUNCH_BLOCKING']="1"

@@ -51,14 +51,14 @@ def get_data_loaders(args):
                 data_suffix='.npz'
                 ) for partition in ['train', 'val', 'test']}
     
-    dset_loaders = {x: torch.utils.data.DataLoader(
-                        dsets[x],
-                        batch_size=args.batch_size,
-                        shuffle=True,
-                        collate_fn=pad_packed_collate,
-                        pin_memory=True,
-                        num_workers=args.workers,
-                        worker_init_fn=np.random.seed(1)) for x in ['train', 'val', 'test']}
+    dset_loaders = {x: (torch.utils.data.DataLoader(
+                    dsets[x],
+                    batch_size=args.batch_size,
+                    shuffle=True,
+                    collate_fn=pad_packed_collate,
+                    pin_memory=True,
+                    num_workers=args.workers,
+                    worker_init_fn=np.random.seed(1)), dsets[x].label_list) for x in ['train', 'val', 'test']}
     
     return dset_loaders
     

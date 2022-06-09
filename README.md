@@ -59,6 +59,8 @@ RunningShuffleNetTCN
             - sudo apt-get install tree
         - 폴더 트리 출력
             - tree -d ./{directory}
+        - OSError: sndfile library not found 오류 해결
+            - sudo apt-get install libsndfile1-dev
     - Anaconda 사용
     - python 3.7.13
     - CUDA Version: 11.4

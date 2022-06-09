@@ -40,7 +40,7 @@ class MyDataset(object):
 
         self._data_files = []
 
-        self.load_dataset()
+        self.label_list = self.load_dataset()
 
 
     def load_dataset(self):
@@ -55,12 +55,16 @@ class MyDataset(object):
         self.list = dict()
         self.instance_ids = dict()
 
+        label_list = []
         for i, x in enumerate(self._data_files):
             label = self._get_label_from_path( x )
+            label_list.append(label)
+            
             self.list[i] = [ x, self._labels.index( label ) ]
             self.instance_ids[i] = self._get_instance_id_from_path( x )
 
         print('Partition {} loaded'.format(self._data_partition))
+        return label_list
 
     def _get_instance_id_from_path(self, x):
         # for now this works for npz/npys, might break for image folders

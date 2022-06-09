@@ -1,6 +1,6 @@
 python get_output.py \
---config-path configs/lrw_resnet18_mstcn.json \
---model-path train_logs/tcn/2022-06-06T19:09:00/ckpt.best.pth.tar \
+--config-path configs/lrw_snv1x_tcn2x.json \
+--model-path train_logs/tcn/2022-06-08T20:48:29/ckpt.best.pth.tar \
 --device cuda \
 --queue-length 30 \
 --video-data ../hangeul/함께/test/함께_00032.avi \
